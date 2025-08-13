@@ -32,5 +32,3 @@ class ClientsScreen extends StatelessWidget {
     );
   }
 }
-
-

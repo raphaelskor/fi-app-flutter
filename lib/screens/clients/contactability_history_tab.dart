@@ -1,30 +1,42 @@
 import 'package:flutter/material.dart';
 
 class ContactabilityHistoryTab extends StatelessWidget {
-  final List<Map<String, String>> contactHistory = [
+  final List<Map<String, String>> allClientsContactability = [
     {
       'id': '1',
-      'clientName': 'John Doet',
+      'name': 'John Doe',
       'action': 'Visit',
       'status': 'Completed',
-      'timestamp': '2024-01-15 14:30',
-      'notes': 'Client was available, discussed product features'
+      'timestamp': '2024-01-10 10:00',
+      'notes': 'Initial visit, discussed terms.',
+      'channel': 'Visit'
     },
     {
       'id': '2',
-      'clientName': 'Jane Smith',
+      'name': 'Jane Smith',
       'action': 'Call',
       'status': 'No Answer',
-      'timestamp': '2024-01-15 13:15',
-      'notes': 'Phone rang but no answer, will try again later'
+      'timestamp': '2024-01-11 14:30',
+      'notes': 'Tried calling, no response.',
+      'channel': 'Call'
     },
     {
       'id': '3',
-      'clientName': 'Bob Johnson',
+      'name': 'Bob Johnson',
       'action': 'Message',
       'status': 'Replied',
-      'timestamp': '2024-01-14 16:45',
-      'notes': 'Interested in meeting next week'
+      'timestamp': '2024-01-12 09:15',
+      'notes': 'Client replied, set up next meeting.',
+      'channel': 'Message'
+    },
+    {
+      'id': '4',
+      'name': 'John Doe',
+      'action': 'Call',
+      'status': 'PTP Set',
+      'timestamp': '2024-01-13 11:00',
+      'notes': 'Client agreed to pay next week.',
+      'channel': 'Call'
     },
   ];
 
@@ -36,62 +48,45 @@ class ContactabilityHistoryTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Contactability History',
+            'All Clients Contactability History',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 10),
           Text(
-            'All prior conversations/calls with clients',
+            'Comprehensive history of all contact attempts.',
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           SizedBox(height: 20),
           ListView.builder(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
-            itemCount: contactHistory.length,
+            itemCount: allClientsContactability.length,
             itemBuilder: (context, index) {
-              final record = contactHistory[index];
+              final record = allClientsContactability[index];
               return Card(
-                margin: EdgeInsets.only(bottom: 15),
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                margin: EdgeInsets.only(bottom: 10),
+                elevation: 1,
                 child: Padding(
-                  padding: const EdgeInsets.all(15.0),
+                  padding: const EdgeInsets.all(12.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            record['clientName']!,
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: record['status'] == 'Completed' || record['status'] == 'Replied' ? Colors.green[100] : Colors.red[100],
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            child: Text(
-                              record['status']!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: record['status'] == 'Completed' || record['status'] == 'Replied' ? Colors.green[800] : Colors.red[800],
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        '${record['name']} - ${record['action']} (${record['channel']})',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       SizedBox(height: 5),
                       Text(
-                        '${record['action']} • ${record['timestamp']}',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                        'Status: ${record['status']}',
+                        style: TextStyle(color: Colors.grey[700]),
                       ),
-                      SizedBox(height: 10),
                       Text(
-                        record['notes']!,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                        'Timestamp: ${record['timestamp']}',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                      Text(
+                        'Notes: ${record['notes']}',
+                        style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey[800]),
                       ),
                     ],
                   ),
@@ -104,4 +99,3 @@ class ContactabilityHistoryTab extends StatelessWidget {
     );
   }
 }
-

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../widgets/bottom_navigation.dart';
-import 'dashboard/dashboard_screen.dart';
-import 'clients/clients_screen.dart';
-import 'history/history_screen.dart';
-import 'profile/profile_screen.dart';
+import 'package:field_investigator_app/widgets/bottom_navigation.dart';
+import 'package:field_investigator_app/screens/dashboard/dashboard_screen.dart';
+import 'package:field_investigator_app/screens/clients/clients_screen.dart';
+import 'package:field_investigator_app/screens/history/history_screen.dart';
+import 'package:field_investigator_app/screens/profile/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -11,7 +11,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
+  int _selectedIndex = 0;
 
   final List<Widget> _screens = [
     DashboardScreen(),
@@ -20,20 +20,20 @@ class _MainScreenState extends State<MainScreen> {
     ProfileScreen(),
   ];
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
-      bottomNavigationBar: CustomBottomNavigation(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: BottomNavigation(
+        selectedIndex: _selectedIndex,
+        onItemSelected: _onItemTapped,
       ),
     );
   }
 }
-
-
