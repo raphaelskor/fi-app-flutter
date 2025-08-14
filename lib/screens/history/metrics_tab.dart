@@ -34,20 +34,7 @@ class MetricsTab extends StatelessWidget {
             'Summary of channels, visit status in chart',
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
-          SizedBox(height: 20),
-          // Summary Cards
-          GridView.count(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            crossAxisCount: 3,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            children: [
-              _buildSummaryCard('Total Visits', '73', Colors.blue),
-              _buildSummaryCard('Total Calls', '103', Colors.green),
-              _buildSummaryCard('Total Messages', '46', Colors.orange),
-            ],
-          ),
+
           SizedBox(height: 20),
           // Weekly Activity Chart
           Card(
@@ -108,7 +95,7 @@ class MetricsTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Channel Distribution',
+                    'Channel Distribution (All-Time)',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),

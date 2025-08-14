@@ -1,42 +1,30 @@
 import 'package:flutter/material.dart';
 
 class ContactabilityHistoryTab extends StatelessWidget {
-  final List<Map<String, String>> allClientsContactability = [
+  final List<Map<String, String>> contactHistory = [
     {
       'id': '1',
-      'name': 'John Doe',
+      'clientName': 'John Doet',
       'action': 'Visit',
       'status': 'Completed',
-      'timestamp': '2024-01-10 10:00',
-      'notes': 'Initial visit, discussed terms.',
-      'channel': 'Visit'
+      'timestamp': '2024-01-15 14:30',
+      'notes': 'Client was available, discussed product features'
     },
     {
       'id': '2',
-      'name': 'Jane Smith',
+      'clientName': 'Jane Smith',
       'action': 'Call',
       'status': 'No Answer',
-      'timestamp': '2024-01-11 14:30',
-      'notes': 'Tried calling, no response.',
-      'channel': 'Call'
+      'timestamp': '2024-01-15 13:15',
+      'notes': 'Phone rang but no answer, will try again later'
     },
     {
       'id': '3',
-      'name': 'Bob Johnson',
+      'clientName': 'Bob Johnson',
       'action': 'Message',
       'status': 'Replied',
-      'timestamp': '2024-01-12 09:15',
-      'notes': 'Client replied, set up next meeting.',
-      'channel': 'Message'
-    },
-    {
-      'id': '4',
-      'name': 'John Doe',
-      'action': 'Call',
-      'status': 'PTP Set',
-      'timestamp': '2024-01-13 11:00',
-      'notes': 'Client agreed to pay next week.',
-      'channel': 'Call'
+      'timestamp': '2024-01-14 16:45',
+      'notes': 'Interested in meeting next week'
     },
   ];
 
@@ -48,45 +36,62 @@ class ContactabilityHistoryTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'All Clients Contactability History',
+            'Contactability History',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 10),
           Text(
-            'Comprehensive history of all contact attempts.',
+            'All prior conversations/calls with clients',
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           SizedBox(height: 20),
           ListView.builder(
             shrinkWrap: true,
             physics: NeverScrollableScrollPhysics(),
-            itemCount: allClientsContactability.length,
+            itemCount: contactHistory.length,
             itemBuilder: (context, index) {
-              final record = allClientsContactability[index];
+              final record = contactHistory[index];
               return Card(
-                margin: EdgeInsets.only(bottom: 10),
-                elevation: 1,
+                margin: EdgeInsets.only(bottom: 15),
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 child: Padding(
-                  padding: const EdgeInsets.all(12.0),
+                  padding: const EdgeInsets.all(15.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${record['name']} - ${record['action']} (${record['channel']})',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            record['clientName']!,
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: record['status'] == 'Completed' || record['status'] == 'Replied' ? Colors.green[100] : Colors.red[100],
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              record['status']!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: record['status'] == 'Completed' || record['status'] == 'Replied' ? Colors.green[800] : Colors.red[800],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       SizedBox(height: 5),
                       Text(
-                        'Status: ${record['status']}',
-                        style: TextStyle(color: Colors.grey[700]),
+                        '${record['action']} • ${record['timestamp']}',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                       ),
+                      SizedBox(height: 10),
                       Text(
-                        'Timestamp: ${record['timestamp']}',
-                        style: TextStyle(color: Colors.grey[700]),
-                      ),
-                      Text(
-                        'Notes: ${record['notes']}',
-                        style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey[800]),
+                        record['notes']!,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[800]),
                       ),
                     ],
                   ),

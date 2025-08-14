@@ -10,7 +10,8 @@ class ClientDetailsScreen extends StatefulWidget {
   _ClientDetailsScreenState createState() => _ClientDetailsScreenState();
 }
 
-class _ClientDetailsScreenState extends State<ClientDetailsScreen> with SingleTickerProviderStateMixin {
+class _ClientDetailsScreenState extends State<ClientDetailsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -66,12 +67,13 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen> with SingleTi
                 ),
               );
               if (result == 'contactability') {
-                _tabController.animateTo(1); // Switch to Client Contactability tab
+                _tabController
+                    .animateTo(1); // Switch to Client Contactability tab
               }
             },
             label: Text('Call'),
             icon: Icon(Icons.call),
-            backgroundColor: Colors.green,
+            backgroundColor: Colors.white,
           ),
           SizedBox(height: 10),
           FloatingActionButton.extended(
@@ -87,12 +89,13 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen> with SingleTi
                 ),
               );
               if (result == 'contactability') {
-                _tabController.animateTo(1); // Switch to Client Contactability tab
+                _tabController
+                    .animateTo(1); // Switch to Client Contactability tab
               }
             },
             label: Text('Message'),
             icon: Icon(Icons.message),
-            backgroundColor: Colors.orange,
+            backgroundColor: Colors.white,
           ),
           SizedBox(height: 10),
           FloatingActionButton.extended(
@@ -108,17 +111,20 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen> with SingleTi
                 ),
               );
               if (result == 'contactability') {
-                _tabController.animateTo(1); // Switch to Client Contactability tab
+                _tabController
+                    .animateTo(1); // Switch to Client Contactability tab
               }
             },
             label: Text('Visit'),
             icon: Icon(Icons.location_on),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.white,
           ),
         ],
       ),
     );
   }
+
+  // ...existing code...
 
   Widget _buildClientDetailsTab() {
     return SingleChildScrollView(
@@ -126,30 +132,135 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen> with SingleTi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildDetailRow('User ID', widget.client['id']!),
-          _buildDetailRow('Name', widget.client['name']!),
-          _buildDetailRow('Mobile', widget.client['phone']!),
-          _buildDetailRow('DPD Bucket', 'N/A'), // Dummy
-          _buildDetailRow('DPD', 'N/A'), // Dummy
-          _buildDetailRow('Gender', 'Male'), // Dummy
-          _buildDetailRow('Date of Birth', '1990-01-01'), // Dummy
-          _buildDetailRow('Marital Status', 'Single'), // Dummy
-          _buildDetailRow('KTP Address', 'Jl. KTP No. 123'), // Dummy
-          _buildDetailRow('Home Address', widget.client['address']!),
-          _buildDetailRow('Office Address', 'Jl. Office No. 456'), // Dummy
-          _buildDetailRow('Office Name', 'PT Dummy Jaya'), // Dummy
-          _buildDetailRow('Job Status', 'Employed'), // Dummy
-          _buildDetailRow('Job Position', 'Manager'), // Dummy
-          _buildDetailRow('Length of Work', '5 Years'), // Dummy
-          _buildDetailRow('Mother Name', 'Ny. Dummy'), // Dummy
-          _buildDetailRow('TAD', 'N/A'), // Dummy
-          _buildDetailRow('MAD', 'N/A'), // Dummy
-          _buildDetailRow('Agent Name', 'Agent Smith'), // Dummy
-          _buildDetailRow('Agent Email', 'agent.smith@example.com'), // Dummy
+          Card(
+            elevation: 2,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 32,
+                    child: Icon(Icons.person, size: 36),
+                  ),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.client['name']!,
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold)),
+                        SizedBox(height: 4),
+                        Text(widget.client['phone']!,
+                            style: TextStyle(color: Colors.grey[700])),
+                        SizedBox(height: 4),
+                        Text(widget.client['address']!,
+                            style: TextStyle(color: Colors.grey[700])),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          Text('Personal Info',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Card(
+            elevation: 1,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: [
+                  _iconDetailRow(Icons.badge, 'User ID', widget.client['id']!),
+                  _iconDetailRow(Icons.cake, 'Date of Birth', '1990-01-01'),
+                  _iconDetailRow(Icons.person_outline, 'Gender', 'Male'),
+                  _iconDetailRow(
+                      Icons.family_restroom, 'Marital Status', 'Single'),
+                  _iconDetailRow(Icons.home, 'KTP Address', 'Jl. KTP No. 123'),
+                  _iconDetailRow(Icons.home_work, 'Home Address',
+                      widget.client['address']!),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          Text('Job Info',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Card(
+            elevation: 1,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: [
+                  _iconDetailRow(
+                      Icons.business, 'Office Name', 'PT Dummy Jaya'),
+                  _iconDetailRow(Icons.location_city, 'Office Address',
+                      'Jl. Office No. 456'),
+                  _iconDetailRow(Icons.work, 'Job Status', 'Employed'),
+                  _iconDetailRow(Icons.work_outline, 'Job Position', 'Manager'),
+                  _iconDetailRow(Icons.timer, 'Length of Work', '5 Years'),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 16),
+          Text('Other Info',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Card(
+            elevation: 1,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                children: [
+                  _iconDetailRow(Icons.person, 'Mother Name', 'Ny. Dummy'),
+                  _iconDetailRow(Icons.info_outline, 'DPD Bucket', 'N/A'),
+                  _iconDetailRow(Icons.info_outline, 'DPD', 'N/A'),
+                  _iconDetailRow(Icons.info_outline, 'TAD', 'N/A'),
+                  _iconDetailRow(Icons.info_outline, 'MAD', 'N/A'),
+                  _iconDetailRow(Icons.person, 'Agent Name', 'Agent Smith'),
+                  _iconDetailRow(
+                      Icons.email, 'Agent Email', 'agent.smith@example.com'),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
+
+  Widget _iconDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.blueAccent, size: 20),
+          SizedBox(width: 10),
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
+          ),
+        ],
+      ),
+    );
+  }
+
+// ...existing code...
 
   Widget _buildClientContactabilityTab() {
     final List<Map<String, String>> clientContactabilityHistory = [

@@ -48,12 +48,12 @@ class HistoryListTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'History List',
+            'My History (All-Time)',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 10),
           Text(
-            'Table of contactability made by Field Investigator',
+            'All contactability made by you',
             style: TextStyle(fontSize: 14, color: Colors.grey[600]),
           ),
           SizedBox(height: 20),
