@@ -26,8 +26,11 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   final _visitNotesController = TextEditingController();
   final _visitAgentController = TextEditingController();
   final _visitAgentTeamLeadController = TextEditingController();
+  final _ptpAmountController = TextEditingController();
 
   ContactabilityChannel? _selectedChannel;
+  DateTime? _selectedPtpDate;
+  bool _showPtpFields = false;
 
   @override
   void initState() {
@@ -47,6 +50,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     _visitNotesController.dispose();
     _visitAgentController.dispose();
     _visitAgentTeamLeadController.dispose();
+    _ptpAmountController.dispose();
     super.dispose();
   }
 
@@ -454,6 +458,13 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               }).toList(),
               onChanged: (result) {
                 controller.setSelectedContactResult(result);
+                setState(() {
+                  _showPtpFields = result == ContactResult.ptp;
+                  if (!_showPtpFields) {
+                    _ptpAmountController.clear();
+                    _selectedPtpDate = null;
+                  }
+                });
               },
               validator: (value) {
                 if (value == null) {
@@ -462,6 +473,50 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 return null;
               },
             ),
+
+            // Conditional PTP fields
+            if (_showPtpFields) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _ptpAmountController,
+                decoration: const InputDecoration(
+                  labelText: 'PTP Amount',
+                  border: OutlineInputBorder(),
+                  prefixText: 'R ',
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (_showPtpFields && (value == null || value.isEmpty)) {
+                    return 'Please enter PTP amount';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              InkWell(
+                onTap: _selectPtpDate,
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'PTP Date',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: const Icon(Icons.calendar_today),
+                    errorText: _showPtpFields && _selectedPtpDate == null
+                        ? 'Please select PTP date'
+                        : null,
+                  ),
+                  child: Text(
+                    _selectedPtpDate != null
+                        ? DateFormat('dd/MM/yyyy').format(_selectedPtpDate!)
+                        : 'Select PTP date',
+                    style: TextStyle(
+                      color: _selectedPtpDate != null
+                          ? Colors.black87
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -638,10 +693,35 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   void _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validate PTP fields if PTP is selected
+    if (_showPtpFields) {
+      if (_ptpAmountController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter PTP amount'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      if (_selectedPtpDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select PTP date'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
     final controller = context.read<ContactabilityController>();
     controller.clearError();
 
-    final success = await controller.submitContactability();
+    final success = await controller.submitContactability(
+      ptpAmount: _showPtpFields ? _ptpAmountController.text : null,
+      ptpDate: _showPtpFields ? _selectedPtpDate : null,
+    );
 
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -651,12 +731,19 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         ),
       );
 
-      // Navigate back to the client details screen with the contactability tab
-      Navigator.of(context)
-          .popUntil((route) => route.settings.name == '/client_details');
-
-      // TODO: Navigate to contactability history tab specifically
-      // This might require updating the client details screen to accept a tab parameter
+      // Navigate back to the client details screen with success result
+      // This will trigger the refresh in client_details_screen.dart
+      Navigator.pop(context, true);
+    } else if (mounted) {
+      // Show error message if submission failed
+      final errorMessage =
+          controller.errorMessage ?? 'Failed to submit contactability';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -679,6 +766,25 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         return 'Message';
       case ContactabilityChannel.visit:
         return 'Visit';
+    }
+  }
+
+  Future<void> _selectPtpDate() async {
+    final now = DateTime.now();
+    final today =
+        DateTime(now.year, now.month, now.day); // Reset time to start of day
+    final maxDate = today.add(const Duration(days: 5)); // 5 days from today
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedPtpDate ?? today,
+      firstDate: today, // Can only select from today
+      lastDate: maxDate, // Maximum 5 days ahead
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedPtpDate = picked;
+      });
     }
   }
 }

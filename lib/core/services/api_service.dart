@@ -492,8 +492,33 @@ class ApiService {
       print('📄 Response Body: ${response.body}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        print('✅ Contactability submitted successfully');
-        return true;
+        // Parse the response to check for success status
+        try {
+          final List<dynamic> responseList = jsonDecode(response.body);
+          if (responseList.isNotEmpty) {
+            final responseData = responseList[0];
+            if (responseData['data'] != null &&
+                responseData['data'].isNotEmpty) {
+              final dataItem = responseData['data'][0];
+              final status = dataItem['status']?.toString().toLowerCase();
+              if (status == 'success') {
+                print(
+                    '✅ Contactability submitted successfully with SUCCESS status');
+                return true;
+              } else {
+                print('❌ Contactability submission failed - status: $status');
+                return false;
+              }
+            }
+          }
+          print('❌ Invalid response format from Skorcard API');
+          return false;
+        } catch (e) {
+          print('❌ Error parsing response: $e');
+          // If parsing fails but HTTP status is success, still return true
+          print('✅ Contactability submitted successfully (fallback)');
+          return true;
+        }
       } else {
         print('❌ Failed to submit contactability: ${response.statusCode}');
         throw NetworkException(

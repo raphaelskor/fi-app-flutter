@@ -164,7 +164,10 @@ class ContactabilityController extends ChangeNotifier {
   }
 
   // Submit contactability to Skorcard API
-  Future<bool> submitContactability() async {
+  Future<bool> submitContactability({
+    String? ptpAmount,
+    DateTime? ptpDate,
+  }) async {
     if (_skorUserId == null || _skorUserId!.isEmpty) {
       _setError('User ID not available');
       return false;
@@ -205,6 +208,20 @@ class ContactabilityController extends ChangeNotifier {
 
       if (_selectedContactResult != null) {
         submitData['Contact_Result'] = _selectedContactResult!.apiValue;
+
+        // Add PTP fields if contact result is PTP
+        if (_selectedContactResult == ContactResult.ptp) {
+          if (ptpAmount != null && ptpAmount.isNotEmpty) {
+            submitData['P2p_Amount'] = ptpAmount;
+          }
+          if (ptpDate != null) {
+            // Format date as DD/MM/YYYY
+            final day = ptpDate.day.toString().padLeft(2, '0');
+            final month = ptpDate.month.toString().padLeft(2, '0');
+            final year = ptpDate.year.toString();
+            submitData['P2p_Date'] = '$day/$month/$year';
+          }
+        }
       }
 
       submitData['Visit_Notes'] = _visitNotes.trim();
