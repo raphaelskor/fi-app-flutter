@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../../services/auth_service.dart';
+import '../../core/services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -151,7 +151,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -159,7 +160,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Text(
                       'Contact Information',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 10),
                     _buildInfoRow(Icons.email, 'Email', userInfo['email']!),
@@ -171,7 +173,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SizedBox(height: 20),
             Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -179,7 +182,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Text(
                       'Submit Attendance Hari Ini',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 10),
                     if (!submittedToday)
@@ -193,10 +197,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             value: selectedAttendance,
                             items: [
-                              DropdownMenuItem(value: 'H', child: Text('Hadir')),
+                              DropdownMenuItem(
+                                  value: 'H', child: Text('Hadir')),
                               DropdownMenuItem(value: 'I', child: Text('Izin')),
-                              DropdownMenuItem(value: 'S', child: Text('Sakit')),
-                              DropdownMenuItem(value: 'A', child: Text('Alpha')),
+                              DropdownMenuItem(
+                                  value: 'S', child: Text('Sakit')),
+                              DropdownMenuItem(
+                                  value: 'A', child: Text('Alpha')),
                             ],
                             onChanged: (val) {
                               setState(() {
@@ -206,7 +213,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           SizedBox(height: 10),
                           ElevatedButton(
-                            onPressed: selectedAttendance == null ? null : _submitAttendance,
+                            onPressed: selectedAttendance == null
+                                ? null
+                                : _submitAttendance,
                             child: Text('Submit'),
                           ),
                         ],
@@ -231,7 +240,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SizedBox(height: 20),
             Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -239,7 +249,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Text(
                       'Attendance History (1 Bulan Terakhir)',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 10),
                     TableCalendar(
@@ -247,8 +258,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       lastDay: lastDay,
                       focusedDay: today,
                       calendarFormat: CalendarFormat.month,
-                      headerStyle: HeaderStyle(formatButtonVisible: false, titleCentered: true),
-                      daysOfWeekStyle: DaysOfWeekStyle(weekdayStyle: TextStyle(fontWeight: FontWeight.bold)),
+                      headerStyle: HeaderStyle(
+                          formatButtonVisible: false, titleCentered: true),
+                      daysOfWeekStyle: DaysOfWeekStyle(
+                          weekdayStyle: TextStyle(fontWeight: FontWeight.bold)),
                       calendarBuilders: CalendarBuilders(
                         defaultBuilder: (context, day, focusedDay) {
                           final status = attendanceMap[_dateOnly(day)];
@@ -304,9 +317,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Container(
           width: 20,
           height: 20,
-          decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
+          decoration: BoxDecoration(
+              color: color.withOpacity(0.2), shape: BoxShape.circle),
           child: Center(
-            child: Text(code, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+            child: Text(code,
+                style: TextStyle(color: color, fontWeight: FontWeight.bold)),
           ),
         ),
         SizedBox(width: 5),
