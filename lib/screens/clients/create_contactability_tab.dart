@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../../core/controllers/client_controller.dart';
 import '../../core/models/client.dart';
 import '../../core/utils/app_utils.dart' as AppUtils;
@@ -14,12 +15,57 @@ class CreateContactabilityTab extends StatefulWidget {
 }
 
 class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  Timer? _debounceTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ClientController>().initialize();
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _filterClients(String query) {
+    // Cancel previous timer
+    _debounceTimer?.cancel();
+
+    // Set up new timer for debouncing
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      setState(() {
+        _searchQuery = query.toLowerCase();
+      });
+    });
+  }
+
+  /// Format phone number for clean display: +62877662142182 -> 0877662142182
+  String _formatPhoneClean(String phone) {
+    // Remove all non-digit characters
+    String cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
+
+    // Handle +62 prefix - replace with 0
+    if (cleaned.startsWith('62')) {
+      cleaned = '0${cleaned.substring(2)}';
+    }
+    // Handle if it starts with 8 (missing country code)
+    else if (cleaned.startsWith('8')) {
+      cleaned = '0$cleaned';
+    }
+    // If it already starts with 0, keep as is
+    else if (!cleaned.startsWith('0')) {
+      // For any other format, try to clean and add 0
+      cleaned = '0$cleaned';
+    }
+
+    return cleaned;
   }
 
   @override
@@ -35,6 +81,8 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(),
+                const SizedBox(height: 16),
+                _buildSearchBar(),
                 const SizedBox(height: 20),
                 _buildContent(clientController),
               ],
@@ -46,19 +94,102 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
   }
 
   Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Today\'s Client List',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    return Consumer<ClientController>(
+      builder: (context, controller, child) {
+        final totalCount = controller.todaysClients.length;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Today\'s Client List',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                Text(
+                  'Optimized by distance',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                if (totalCount > 0) ...[
+                  Text(
+                    ' • ',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$totalCount clients',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: 'Search by name or phone number...',
+          hintStyle: TextStyle(color: Colors.grey[500]),
+          prefixIcon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: _searchQuery.isNotEmpty
+                ? Icon(Icons.search,
+                    color: Colors.blue[600], key: const ValueKey('searching'))
+                : Icon(Icons.search,
+                    color: Colors.grey[500], key: const ValueKey('idle')),
+          ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: IconButton(
+                    key: const ValueKey('clear'),
+                    icon: Icon(Icons.clear, color: Colors.grey[500]),
+                    onPressed: () {
+                      _searchController.clear();
+                      _filterClients('');
+                    },
+                  ),
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
         ),
-        const SizedBox(height: 5),
-        Text(
-          'Optimized by distance',
-          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-        ),
-      ],
+        onChanged: _filterClients,
+      ),
     );
   }
 
@@ -75,12 +206,119 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
         );
 
       case ClientLoadingState.loaded:
-        final clients = controller.todaysClients;
-        if (clients.isEmpty) {
+        final allClients = controller.todaysClients;
+        final filteredClients = _getFilteredClients(allClients);
+
+        if (allClients.isEmpty) {
           return _buildEmptyState();
         }
-        return _buildClientList(clients);
+
+        if (filteredClients.isEmpty && _searchQuery.isNotEmpty) {
+          return _buildNoSearchResultsState();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildResultsHeader(filteredClients.length, allClients.length),
+            const SizedBox(height: 16),
+            _buildClientList(filteredClients),
+          ],
+        );
     }
+  }
+
+  List<Client> _getFilteredClients(List<Client> clients) {
+    if (_searchQuery.isEmpty) {
+      return clients;
+    }
+
+    return clients.where((client) {
+      final nameMatch = client.name.toLowerCase().contains(_searchQuery);
+      final phoneMatch = client.phone.contains(_searchQuery);
+      final cleanPhoneMatch =
+          _formatPhoneClean(client.phone).contains(_searchQuery);
+      return nameMatch || phoneMatch || cleanPhoneMatch;
+    }).toList();
+  }
+
+  Widget _buildResultsHeader(int filteredCount, int totalCount) {
+    if (_searchQuery.isEmpty) {
+      return Text(
+        'Showing $totalCount clients',
+        style: TextStyle(
+          fontSize: 14,
+          color: Colors.grey[600],
+          fontWeight: FontWeight.w500,
+        ),
+      );
+    } else {
+      return RichText(
+        text: TextSpan(
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey[600],
+          ),
+          children: [
+            TextSpan(
+              text: 'Found ',
+            ),
+            TextSpan(
+              text: '$filteredCount',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+            TextSpan(
+              text: ' of $totalCount clients',
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Widget _buildNoSearchResultsState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 64,
+            color: Colors.grey[400],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No clients found',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try searching with a different name or phone number',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[500],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              _searchController.clear();
+              _filterClients('');
+            },
+            icon: const Icon(Icons.clear),
+            label: const Text('Clear Search'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildEmptyState() {
@@ -163,7 +401,7 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Expanded(
-          child: Text(
+          child: _buildHighlightedText(
             client.name,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
@@ -188,6 +426,39 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
     );
   }
 
+  Widget _buildHighlightedText(String text, {TextStyle? style}) {
+    if (_searchQuery.isEmpty) {
+      return Text(text, style: style);
+    }
+
+    final lowerText = text.toLowerCase();
+    final lowerQuery = _searchQuery.toLowerCase();
+
+    if (!lowerText.contains(lowerQuery)) {
+      return Text(text, style: style);
+    }
+
+    final startIndex = lowerText.indexOf(lowerQuery);
+    final endIndex = startIndex + lowerQuery.length;
+
+    return RichText(
+      text: TextSpan(
+        style: style ?? const TextStyle(color: Colors.black),
+        children: [
+          TextSpan(text: text.substring(0, startIndex)),
+          TextSpan(
+            text: text.substring(startIndex, endIndex),
+            style: (style ?? const TextStyle(color: Colors.black)).copyWith(
+              backgroundColor: Colors.yellow[200],
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          TextSpan(text: text.substring(endIndex)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildClientInfo(Client client) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,8 +480,8 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
           children: [
             Icon(Icons.phone, size: 16, color: Colors.grey[600]),
             const SizedBox(width: 5),
-            Text(
-              AppUtils.StringUtils.formatPhone(client.phone),
+            _buildHighlightedText(
+              _formatPhoneClean(client.phone),
               style: TextStyle(fontSize: 14, color: Colors.grey[700]),
             ),
           ],
