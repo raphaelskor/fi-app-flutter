@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import '../config/env_config.dart';
 import '../exceptions/app_exception.dart';
 
@@ -471,7 +472,7 @@ class ApiService {
   Future<bool> submitContactability(Map<String, dynamic> data) async {
     try {
       const String url =
-          'https://n8n.skorcard.app/webhook/ff5e7b11-a3df-4367-ba1e-01db140c1ecd';
+          'https://n8n.skorcard.app/webhook/95709b0d-0d03-4710-85d5-d72f14359ee4';
 
       print('🔄 Submitting contactability to Skorcard API');
       print('🔗 URL: $url');
@@ -523,6 +524,177 @@ class ApiService {
         print('❌ Failed to submit contactability: ${response.statusCode}');
         throw NetworkException(
           message: 'Failed to submit contactability: ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+    } on SocketException catch (e) {
+      print('❌ Socket Exception: $e');
+      throw const NetworkException(
+        message: 'No internet connection',
+        statusCode: 0,
+      );
+    } on HttpException catch (e) {
+      print('❌ HTTP Exception: $e');
+      throw const NetworkException(
+        message: 'Network error occurred',
+        statusCode: 0,
+      );
+    } catch (e) {
+      print('❌ Unexpected Error: $e');
+      if (e is AppException) rethrow;
+      throw NetworkException(
+        message: 'Unexpected error: ${e.toString()}',
+        statusCode: 0,
+      );
+    }
+  }
+
+  /// Submit contactability with images using multipart/form-data
+  Future<bool> submitContactabilityWithImages({
+    required Map<String, dynamic> data,
+    List<File>? images,
+  }) async {
+    try {
+      const String url =
+          'https://n8n.skorcard.app/webhook/95709b0d-0d03-4710-85d5-d72f14359ee4';
+
+      print('🔄 Submitting contactability with images to Skorcard API');
+      print('🔗 URL: $url');
+      print('📄 Data: $data');
+      print('🖼️ Images count: ${images?.length ?? 0}');
+
+      var request = http.MultipartRequest('POST', Uri.parse(url));
+
+      // Add form fields
+      data.forEach((key, value) {
+        if (value != null) {
+          request.fields[key] = value.toString();
+        }
+      });
+
+      // Add images
+      if (images != null && images.isNotEmpty) {
+        for (int i = 0; i < images.length && i < 3; i++) {
+          final image = images[i];
+          final imageField = 'image${i + 1}';
+
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              imageField,
+              image.path,
+              filename:
+                  'image_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            ),
+          );
+          print('📎 Added image ${i + 1}: ${image.path}');
+        }
+      }
+
+      print('🚀 Sending multipart request...');
+      final streamedResponse =
+          await request.send().timeout(const Duration(seconds: 60));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('📡 Response Status Code: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Parse the response to check for success status
+        try {
+          final List<dynamic> responseList = jsonDecode(response.body);
+          if (responseList.isNotEmpty) {
+            final responseData = responseList[0];
+            if (responseData['data'] != null &&
+                responseData['data'].isNotEmpty) {
+              final dataItem = responseData['data'][0];
+              final status = dataItem['status']?.toString().toLowerCase();
+              if (status == 'success') {
+                print('✅ Contactability with images submitted successfully');
+                return true;
+              } else {
+                print('❌ Contactability submission failed - status: $status');
+                return false;
+              }
+            }
+          }
+          print('❌ Invalid response format from Skorcard API');
+          return false;
+        } catch (e) {
+          print('❌ Error parsing response: $e');
+          // If parsing fails but HTTP status is success, still return true
+          print(
+              '✅ Contactability with images submitted successfully (fallback)');
+          return true;
+        }
+      } else {
+        print(
+            '❌ Failed to submit contactability with images: ${response.statusCode}');
+        throw NetworkException(
+          message: 'Failed to submit contactability: ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+    } on SocketException catch (e) {
+      print('❌ Socket Exception: $e');
+      throw const NetworkException(
+        message: 'No internet connection',
+        statusCode: 0,
+      );
+    } on HttpException catch (e) {
+      print('❌ HTTP Exception: $e');
+      throw const NetworkException(
+        message: 'Network error occurred',
+        statusCode: 0,
+      );
+    } catch (e) {
+      print('❌ Unexpected Error: $e');
+      if (e is AppException) rethrow;
+      throw NetworkException(
+        message: 'Unexpected error: ${e.toString()}',
+        statusCode: 0,
+      );
+    }
+  }
+
+  /// Get agent contactability history from Skorcard API
+  Future<Map<String, dynamic>> getAgentContactabilityHistory({
+    required String agentEmail,
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    try {
+      const String baseUrl =
+          'https://n8n.skorcard.app/webhook/d540950f-85d2-4e2b-a054-7e5dfcef0379';
+      final String url =
+          '$baseUrl?agent_email=$agentEmail&page=$page&per_page=$perPage';
+
+      print('🔄 Fetching agent contactability history');
+      print('🔗 URL: $url');
+
+      final response = await _client
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 30));
+
+      print('📡 Response Status Code: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final List<dynamic> responseList = jsonDecode(response.body);
+        if (responseList.isNotEmpty) {
+          final responseData = responseList[0];
+          print('✅ Agent history fetched successfully');
+          return responseData;
+        } else {
+          print('⚠️ Empty response from agent history API');
+          return {
+            'data': [],
+            'info': {'count': 0, 'more_records': false}
+          };
+        }
+      } else {
+        print('❌ Failed to fetch agent history: ${response.statusCode}');
+        throw NetworkException(
+          message: 'Failed to fetch agent history: ${response.statusCode}',
           statusCode: response.statusCode,
         );
       }

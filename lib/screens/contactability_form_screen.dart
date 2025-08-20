@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 import '../core/controllers/contactability_controller.dart';
 import '../core/models/client.dart';
 import '../core/models/contactability.dart';
@@ -98,6 +101,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                     _buildVisitStatusSection(controller),
                     const SizedBox(height: 20),
                     _buildVisitBySkorTeamSection(controller),
+                    const SizedBox(height: 20),
+                    _buildImageUploadSection(controller),
                     const SizedBox(height: 20),
                   ],
                   _buildContactResultSection(controller),
@@ -227,19 +232,49 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 ),
               ],
             ),
-            if (controller.currentLocation != null) ...[
+            if (controller.currentLocation != null &&
+                _selectedChannel == ContactabilityChannel.visit) ...[
               const SizedBox(height: 12),
-              Column(
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Location',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Location',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${controller.currentLocation!.latitude.toStringAsFixed(6)}, ${controller.currentLocation!.longitude.toStringAsFixed(6)}',
+                          style: TextStyle(color: Colors.grey[700]),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${controller.currentLocation!.latitude.toStringAsFixed(6)}, ${controller.currentLocation!.longitude.toStringAsFixed(6)}',
-                    style: TextStyle(color: Colors.grey[700]),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _refreshLocation(controller),
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Refresh Location',
+                        iconSize: 20,
+                        constraints:
+                            const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: const EdgeInsets.all(4),
+                      ),
+                      IconButton(
+                        onPressed: () => _openGoogleMaps(controller),
+                        icon: const Icon(Icons.map),
+                        tooltip: 'Open in Maps',
+                        iconSize: 20,
+                        constraints:
+                            const BoxConstraints(minWidth: 32, minHeight: 32),
+                        padding: const EdgeInsets.all(4),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -561,6 +596,125 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     );
   }
 
+  Widget _buildImageUploadSection(ContactabilityController controller) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Upload Images',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add up to 3 images for this visit',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 12),
+
+            // Display selected images
+            if (controller.selectedImages.isNotEmpty) ...[
+              SizedBox(
+                height: 100,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: controller.selectedImages.length,
+                  itemBuilder: (context, index) {
+                    final image = controller.selectedImages[index];
+                    return Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              image,
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: GestureDetector(
+                              onTap: () => controller.removeImage(index),
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Add image buttons
+            Row(
+              children: [
+                if (controller.selectedImages.length < 3) ...[
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () =>
+                          _pickImage(ImageSource.camera, controller),
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Camera'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[50],
+                        foregroundColor: Colors.blue[700],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () =>
+                          _pickImage(ImageSource.gallery, controller),
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Gallery'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green[50],
+                        foregroundColor: Colors.green[700],
+                      ),
+                    ),
+                  ),
+                ],
+                if (controller.selectedImages.length >= 3)
+                  Expanded(
+                    child: Text(
+                      'Maximum 3 images reached',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildVisitNotesSection() {
     return Card(
       elevation: 2,
@@ -785,6 +939,114 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
       setState(() {
         _selectedPtpDate = picked;
       });
+    }
+  }
+
+  Future<void> _pickImage(
+      ImageSource source, ContactabilityController controller) async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        final File imageFile = File(image.path);
+        controller.addImage(imageFile);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _refreshLocation(ContactabilityController controller) async {
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 8),
+              Text('Refreshing location...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // Refresh location through controller
+      await controller.refreshLocation();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location refreshed successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh location: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openGoogleMaps(ContactabilityController controller) async {
+    if (controller.currentLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location not available'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final latitude = controller.currentLocation!.latitude;
+    final longitude = controller.currentLocation!.longitude;
+    final googleMapsUrl = 'https://www.google.com/maps?q=$latitude,$longitude';
+
+    try {
+      final Uri url = Uri.parse(googleMapsUrl);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Could not launch Google Maps';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open Google Maps: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

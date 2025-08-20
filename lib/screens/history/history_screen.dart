@@ -25,7 +25,7 @@ class HistoryScreen extends StatelessWidget {
         body: TabBarView(
           children: [
             MetricsTab(),
-            HistoryListTab(),
+            const HistoryListTab(),
           ],
         ),
       ),

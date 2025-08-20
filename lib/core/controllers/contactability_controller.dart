@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:io';
 import '../models/contactability.dart';
 import '../models/contactability_history.dart';
 import '../models/api_models.dart';
@@ -49,6 +50,9 @@ class ContactabilityController extends ChangeNotifier {
   String _visitAgentTeamLead = '';
   DateTime? _contactabilityDateTime;
 
+  // Image handling for visits
+  List<File> _selectedImages = [];
+
   // Pagination
   int _currentPage = 1;
   static const int _pageSize = 20;
@@ -80,6 +84,7 @@ class ContactabilityController extends ChangeNotifier {
   String get visitAgent => _visitAgent;
   String get visitAgentTeamLead => _visitAgentTeamLead;
   DateTime? get contactabilityDateTime => _contactabilityDateTime;
+  List<File> get selectedImages => _selectedImages;
 
   // Initialize
   Future<void> initialize(String clientId, {String? skorUserId}) async {
@@ -183,6 +188,7 @@ class ContactabilityController extends ChangeNotifier {
 
       // Build the data according to the API specification
       final Map<String, dynamic> submitData = {
+        'id': _clientId!, // Add client ID as required by API
         'User_ID': _skorUserId!,
         'Channel': _getChannelApiValue(_selectedChannel),
       };
@@ -236,7 +242,18 @@ class ContactabilityController extends ChangeNotifier {
       }
 
       // Submit to Skorcard API
-      final success = await _apiService.submitContactability(submitData);
+      final bool success;
+      if (_selectedImages.isNotEmpty &&
+          _selectedChannel == ContactabilityChannel.visit) {
+        // Use multipart API for visits with images
+        success = await _apiService.submitContactabilityWithImages(
+          data: submitData,
+          images: _selectedImages,
+        );
+      } else {
+        // Use regular JSON API for other cases
+        success = await _apiService.submitContactability(submitData);
+      }
 
       if (success) {
         _setLoadingState(ContactabilityLoadingState.submitted);
@@ -328,6 +345,26 @@ class ContactabilityController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Image management methods
+  void addImage(File image) {
+    if (_selectedImages.length < 3) {
+      _selectedImages.add(image);
+      notifyListeners();
+    }
+  }
+
+  void removeImage(int index) {
+    if (index >= 0 && index < _selectedImages.length) {
+      _selectedImages.removeAt(index);
+      notifyListeners();
+    }
+  }
+
+  void clearImages() {
+    _selectedImages.clear();
+    notifyListeners();
+  }
+
   void _resetForm() {
     _selectedChannel = ContactabilityChannel.call;
     _selectedResult = null;
@@ -340,6 +377,7 @@ class ContactabilityController extends ChangeNotifier {
     _visitNotes = '';
     _visitAgent = '';
     _visitAgentTeamLead = '';
+    _selectedImages.clear();
     _contactabilityDateTime = DateTime.now();
     notifyListeners();
   }
@@ -348,6 +386,12 @@ class ContactabilityController extends ChangeNotifier {
   Future<void> refresh() async {
     await _getCurrentLocation();
     await loadContactabilityHistory(refresh: true);
+  }
+
+  // Refresh location only
+  Future<void> refreshLocation() async {
+    await _getCurrentLocation();
+    notifyListeners();
   }
 
   // Clear selection
