@@ -8,7 +8,6 @@ import '../services/api_service.dart';
 import '../exceptions/app_exception.dart';
 import '../services/location_service.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
 
 enum ContactabilityLoadingState {
   initial,
@@ -55,7 +54,6 @@ class ContactabilityController extends ChangeNotifier {
 
   // Pagination
   int _currentPage = 1;
-  static const int _pageSize = 20;
 
   // Getters
   ContactabilityLoadingState get loadingState => _loadingState;
@@ -88,11 +86,22 @@ class ContactabilityController extends ChangeNotifier {
 
   // Initialize
   Future<void> initialize(String clientId, {String? skorUserId}) async {
+    // Clear previous data immediately to prevent data mixing
+    _contactabilityHistory.clear();
+    _currentPage = 1;
+    _errorMessage = null;
+    _setLoadingState(ContactabilityLoadingState.initial);
+
     _clientId = clientId;
     _skorUserId = skorUserId;
     _contactabilityDateTime = DateTime.now(); // Set current date/time
+
+    debugPrint(
+        '🔄 Initializing ContactabilityController for client: $clientId with skorUserId: $skorUserId');
+
     await _getCurrentLocation();
-    await loadContactabilityHistory();
+    await loadContactabilityHistory(
+        refresh: true); // Force refresh to ensure clean data
   }
 
   // Get current location
@@ -122,12 +131,17 @@ class ContactabilityController extends ChangeNotifier {
 
       _setLoadingState(ContactabilityLoadingState.loading);
 
+      debugPrint(
+          '📡 Fetching contactability history for Skor User ID: $_skorUserId');
+
       // Fetch data from Skorcard API with error handling
       final List<Map<String, dynamic>> rawHistory;
       try {
         rawHistory = await _apiService.fetchContactabilityHistory(_skorUserId!);
+        debugPrint(
+            '✅ Fetched ${rawHistory.length} contactability records for $_skorUserId');
       } catch (apiError) {
-        debugPrint('API Error fetching contactability history: $apiError');
+        debugPrint('❌ API Error fetching contactability history: $apiError');
         _contactabilityHistory.clear();
         _setLoadingState(ContactabilityLoadingState.loaded);
         return;
@@ -137,7 +151,14 @@ class ContactabilityController extends ChangeNotifier {
       final List<ContactabilityHistory> historyList = [];
       for (final item in rawHistory) {
         try {
-          historyList.add(ContactabilityHistory.fromSkorcardApi(item));
+          final history = ContactabilityHistory.fromSkorcardApi(item);
+          // Ensure this record belongs to the current client
+          if (history.skorUserId == _skorUserId) {
+            historyList.add(history);
+          } else {
+            debugPrint(
+                '⚠️ Skipping record with mismatched skorUserId: ${history.skorUserId} vs $_skorUserId');
+          }
         } catch (e) {
           debugPrint('Error parsing contactability history item: $e');
           // Skip this item and continue with others
@@ -153,6 +174,8 @@ class ContactabilityController extends ChangeNotifier {
         _contactabilityHistory.addAll(historyList);
       }
 
+      debugPrint(
+          '📊 Final contactability history count: ${_contactabilityHistory.length}');
       _setLoadingState(ContactabilityLoadingState.loaded);
     } catch (e) {
       debugPrint('Unexpected error in loadContactabilityHistory: $e');
@@ -417,6 +440,24 @@ class ContactabilityController extends ChangeNotifier {
     _currentPage = 1;
     _resetForm();
     notifyListeners();
+  }
+
+  // Clear all data (useful when switching clients)
+  void clearData() {
+    _contactabilityHistory.clear();
+    _selectedContactability = null;
+    _errorMessage = null;
+    _currentPage = 1;
+    _clientId = null;
+    _skorUserId = null;
+    _setLoadingState(ContactabilityLoadingState.initial);
+    debugPrint('🧹 Cleared all contactability data');
+  }
+
+  @override
+  void dispose() {
+    clearData();
+    super.dispose();
   }
 
   // Private methods

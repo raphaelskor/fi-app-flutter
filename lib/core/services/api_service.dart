@@ -386,6 +386,7 @@ class ApiService {
       final String fullUrl = '$baseUrl?skor_user_id=$skorUserId';
 
       print('🌐 Request URL: $fullUrl');
+      print('🔑 Skor User ID: $skorUserId');
 
       final response = await _client.get(
         Uri.parse(fullUrl),
@@ -397,9 +398,26 @@ class ApiService {
 
       print('📊 Response Status: ${response.statusCode}');
       print('📄 Response Headers: ${response.headers}');
+      print('📄 Response Body Length: ${response.body.length}');
+      print('📄 Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         try {
+          // Check if response body is empty or null
+          if (response.body.isEmpty || response.body.trim().isEmpty) {
+            print('⚠️ Empty response body from API');
+            return [];
+          }
+
+          // Check if response is JSON
+          final contentType = response.headers['content-type'] ?? '';
+          if (!contentType.contains('application/json') &&
+              !contentType.contains('text/json')) {
+            print('⚠️ Response is not JSON. Content-Type: $contentType');
+            print('📄 Response Body: ${response.body}');
+            return [];
+          }
+
           final dynamic parsedResponse = json.decode(response.body);
           print('✅ Successfully parsed JSON: ${parsedResponse.runtimeType}');
 
@@ -434,7 +452,18 @@ class ApiService {
           return historyList;
         } catch (jsonError) {
           print('❌ JSON Parse Error: $jsonError');
-          print('📄 Raw response: ${response.body}');
+          print('📄 Raw response body length: ${response.body.length}');
+          print(
+              '📄 Raw response preview: ${response.body.length > 200 ? response.body.substring(0, 200) + "..." : response.body}');
+
+          // Check for specific error types
+          if (jsonError.toString().contains('Unexpected end of input')) {
+            print('⚠️ API returned empty or incomplete response');
+          } else if (jsonError.toString().contains('Unexpected character')) {
+            print('⚠️ API returned non-JSON content');
+          }
+
+          // Return empty list instead of throwing error to prevent app crash
           return [];
         }
       } else {

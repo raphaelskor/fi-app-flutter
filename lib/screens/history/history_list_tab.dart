@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/controllers/agent_history_controller.dart';
 import '../../core/services/api_service.dart';
+import '../contactability/contactability_details_screen.dart';
 
 class HistoryListTab extends StatefulWidget {
   const HistoryListTab({Key? key}) : super(key: key);
@@ -189,77 +190,94 @@ class _HistoryListTabState extends State<HistoryListTab> {
       margin: const EdgeInsets.only(bottom: 15),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    item.clientName,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
+      child: InkWell(
+        onTap: () => _navigateToContactabilityDetails(item),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.clientName,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                _buildStatusChip(item.contactResult),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Text(
-              '${item.channel} • ${_controller.formatDateTime(item.createdTime)}',
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-            ),
-            if (item.notes.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(
-                item.notes,
-                style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                  _buildStatusChip(item.contactResult),
+                ],
               ),
-            ],
+              const SizedBox(height: 5),
+              Text(
+                '${item.channel} • ${_controller.formatDateTime(item.createdTime)}',
+                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              ),
+              if (item.notes.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  item.notes,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                ),
+              ],
 
-            // Show additional info for visits
-            if (item.channel.toLowerCase().contains('visit')) ...[
-              if (item.visitLocation != null ||
-                  item.visitAction != null ||
-                  item.visitStatus != null) ...[
+              // Show additional info for visits
+              if (item.channel.toLowerCase().contains('visit')) ...[
+                if (item.visitLocation != null ||
+                    item.visitAction != null ||
+                    item.visitStatus != null) ...[
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  if (item.visitLocation != null)
+                    _buildInfoRow('Location', item.visitLocation!),
+                  if (item.visitAction != null)
+                    _buildInfoRow('Action', item.visitAction!),
+                  if (item.visitStatus != null)
+                    _buildInfoRow('Status', item.visitStatus!),
+                ],
+              ],
+
+              // Show PTP info if available
+              if (item.ptpAmount != null || item.ptpDate != null) ...[
                 const SizedBox(height: 8),
                 const Divider(),
                 const SizedBox(height: 8),
-                if (item.visitLocation != null)
-                  _buildInfoRow('Location', item.visitLocation!),
-                if (item.visitAction != null)
-                  _buildInfoRow('Action', item.visitAction!),
-                if (item.visitStatus != null)
-                  _buildInfoRow('Status', item.visitStatus!),
+                Row(
+                  children: [
+                    const Icon(Icons.payment, size: 16, color: Colors.orange),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'PTP: ',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.orange),
+                    ),
+                    if (item.ptpAmount != null) Text('R ${item.ptpAmount}'),
+                    if (item.ptpAmount != null && item.ptpDate != null)
+                      const Text(' • '),
+                    if (item.ptpDate != null) Text(item.ptpDate!),
+                  ],
+                ),
               ],
-            ],
 
-            // Show PTP info if available
-            if (item.ptpAmount != null || item.ptpDate != null) ...[
-              const SizedBox(height: 8),
-              const Divider(),
+              // Show navigation hint
               const SizedBox(height: 8),
               Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const Icon(Icons.payment, size: 16, color: Colors.orange),
-                  const SizedBox(width: 4),
-                  const Text(
-                    'PTP: ',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.orange),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.grey[400],
                   ),
-                  if (item.ptpAmount != null) Text('R ${item.ptpAmount}'),
-                  if (item.ptpAmount != null && item.ptpDate != null)
-                    const Text(' • '),
-                  if (item.ptpDate != null) Text(item.ptpDate!),
                 ],
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -331,6 +349,17 @@ class _HistoryListTabState extends State<HistoryListTab> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _navigateToContactabilityDetails(AgentHistoryItem item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ContactabilityDetailsScreen(
+          contactability: item.toContactabilityHistory(),
+        ),
       ),
     );
   }

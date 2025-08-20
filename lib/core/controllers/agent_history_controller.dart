@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../exceptions/app_exception.dart';
+import '../models/contactability_history.dart';
 
 enum AgentHistoryLoadingState {
   initial,
@@ -24,6 +25,7 @@ class AgentHistoryItem {
   final String? ptpAmount;
   final String? ptpDate;
   final String? reachability;
+  final Map<String, dynamic> rawData; // Added rawData field
 
   AgentHistoryItem({
     required this.id,
@@ -38,6 +40,7 @@ class AgentHistoryItem {
     this.ptpAmount,
     this.ptpDate,
     this.reachability,
+    required this.rawData, // Added rawData field
   });
 
   factory AgentHistoryItem.fromJson(Map<String, dynamic> json) {
@@ -98,7 +101,13 @@ class AgentHistoryItem {
       ptpAmount: json['P2P_Amount']?.toString(),
       ptpDate: json['P2P_Date']?.toString(),
       reachability: json['Reachability']?.toString(),
+      rawData: json, // Added rawData field
     );
+  }
+
+  // Convert to ContactabilityHistory for use in details screen
+  ContactabilityHistory toContactabilityHistory() {
+    return ContactabilityHistory.fromSkorcardApi(rawData);
   }
 }
 

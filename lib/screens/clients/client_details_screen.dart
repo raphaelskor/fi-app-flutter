@@ -6,6 +6,7 @@ import '../../core/models/contactability_history.dart';
 import '../../core/utils/app_utils.dart' as AppUtils;
 import '../../widgets/common_widgets.dart';
 import '../contactability_form_screen.dart';
+import '../contactability/contactability_details_screen.dart';
 
 class ClientDetailsScreen extends StatefulWidget {
   final Client client;
@@ -58,6 +59,40 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(ClientDetailsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If the client has changed, reinitialize the controller
+    if (oldWidget.client.id != widget.client.id) {
+      debugPrint(
+          '🔄 Client changed from ${oldWidget.client.id} to ${widget.client.id}, reinitializing...');
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          // Clear previous data first
+          context.read<ContactabilityController>().clearData();
+
+          // Get Skor User ID from new client's raw API data
+          final String? skorUserId = widget.client.skorUserId;
+          debugPrint('🔍 New client skorUserId: $skorUserId');
+
+          context.read<ContactabilityController>().initialize(
+                widget.client.id,
+                skorUserId: skorUserId,
+              );
+        } catch (e) {
+          debugPrint('Error reinitializing ContactabilityController: $e');
+          // Initialize with empty skorUserId if there's an error
+          context.read<ContactabilityController>().initialize(
+                widget.client.id,
+                skorUserId: null,
+              );
+        }
+      });
+    }
   }
 
   @override
@@ -627,55 +662,70 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(_getChannelIcon(contactability.channel), size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      contactability.channelDisplayName,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getResultColor(contactability.resultDisplayName)
-                        .withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () => _navigateToContactabilityDetails(contactability),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(_getChannelIcon(contactability.channel), size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        contactability.channelDisplayName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    contactability.resultDisplayName,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _getResultColor(contactability.resultDisplayName)
+                          .withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      contactability.resultDisplayName,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            _getResultColor(contactability.resultDisplayName),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(contactability.notes ?? 'No notes'),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    AppUtils.DateUtils.formatDisplayDateTime(
+                        contactability.contactedAt),
                     style: TextStyle(
                       fontSize: 12,
-                      color: _getResultColor(contactability.resultDisplayName),
-                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(contactability.notes ?? 'No notes'),
-            const SizedBox(height: 8),
-            Text(
-              AppUtils.DateUtils.formatDisplayDateTime(
-                  contactability.contactedAt),
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.grey[400],
+                  ),
+                ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -773,6 +823,17 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
         context.read<ContactabilityController>().refresh();
       }
     });
+  }
+
+  void _navigateToContactabilityDetails(ContactabilityHistory contactability) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ContactabilityDetailsScreen(
+          contactability: contactability,
+        ),
+      ),
+    );
   }
 
   IconData _getChannelIcon(String channel) {
