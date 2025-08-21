@@ -55,6 +55,8 @@ enum ContactResult {
   leaveAMessage,
   noRespond,
   ptp,
+  keepPromise,
+  brokenPromise,
 }
 
 enum VisitLocation {
@@ -373,7 +375,11 @@ extension ContactResultExtension on ContactResult {
       case ContactResult.noRespond:
         return 'No respond';
       case ContactResult.ptp:
-        return 'PTP';
+        return 'Promise to Pay (PTP)';
+      case ContactResult.keepPromise:
+        return 'Keep Promise (KP)';
+      case ContactResult.brokenPromise:
+        return 'Broken Promise (BP)';
     }
   }
 

@@ -20,6 +20,7 @@ dependencies:
   permission_handler: ^11.3.0
   image_picker: ^1.0.4
   cached_network_image: ^3.3.0 # Added for loading images from URLs
+  shared_preferences: ^2.2.2 # Added for storing user data
 
 dev_dependencies:
   flutter_test:

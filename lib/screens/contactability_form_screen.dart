@@ -8,6 +8,7 @@ import '../core/controllers/contactability_controller.dart';
 import '../core/models/client.dart';
 import '../core/models/contactability.dart';
 import '../core/utils/app_utils.dart';
+import '../core/services/auth_service.dart';
 
 class ContactabilityFormScreen extends StatefulWidget {
   final Client client;
@@ -42,9 +43,31 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final controller = context.read<ContactabilityController>();
+      final authService = context.read<AuthService>();
+      final userData = authService.userData;
+
       controller.initialize(widget.client.id,
           skorUserId: widget.client.skorUserId);
       controller.setSelectedChannel(_selectedChannel!);
+
+      // Auto-set Visit by Skor Team based on user's team
+      if (userData != null && userData['team'] != null) {
+        final userTeam = userData['team'].toString();
+        final visitBySkorTeam = userTeam.toLowerCase() == 'skorcard'
+            ? VisitBySkorTeam.yes
+            : VisitBySkorTeam.no;
+        controller.setSelectedVisitBySkorTeam(visitBySkorTeam);
+
+        // Auto-set agent information from user data
+        final userName = userData['name']?.toString() ?? '';
+        final userTeamName = userData['team']?.toString() ?? '';
+
+        _visitAgentController.text = userName;
+        _visitAgentTeamLeadController.text = userTeamName;
+
+        controller.setVisitAgent(userName);
+        controller.setVisitAgentTeamLead(userTeamName);
+      }
     });
   }
 
@@ -100,8 +123,6 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                     const SizedBox(height: 20),
                     _buildVisitStatusSection(controller),
                     const SizedBox(height: 20),
-                    _buildVisitBySkorTeamSection(controller),
-                    const SizedBox(height: 20),
                     _buildImageUploadSection(controller),
                     const SizedBox(height: 20),
                   ],
@@ -112,8 +133,6 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                   _buildContactResultSection(controller),
                   const SizedBox(height: 20),
                   _buildVisitNotesSection(),
-                  const SizedBox(height: 20),
-                  _buildAgentInfoSection(),
                   const SizedBox(height: 24),
                   _buildSubmitButton(controller),
                   if (controller.errorMessage != null) ...[
@@ -399,6 +418,12 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               onChanged: (location) {
                 controller.setSelectedVisitLocation(location);
               },
+              validator: (value) {
+                if (value == null) {
+                  return 'Please select visit location';
+                }
+                return null;
+              },
             ),
           ],
         ),
@@ -435,6 +460,12 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               onChanged: (action) {
                 controller.setSelectedVisitAction(action);
               },
+              validator: (value) {
+                if (value == null) {
+                  return 'Please select visit action';
+                }
+                return null;
+              },
             ),
           ],
         ),
@@ -470,6 +501,12 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               }).toList(),
               onChanged: (status) {
                 controller.setSelectedVisitStatus(status);
+              },
+              validator: (value) {
+                if (value == null) {
+                  return 'Please select visit status';
+                }
+                return null;
               },
             ),
           ],
@@ -565,44 +602,6 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 ),
               ),
             ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVisitBySkorTeamSection(ContactabilityController controller) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Visit By Skor Team',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<VisitBySkorTeam>(
-              decoration: const InputDecoration(
-                labelText: 'Visit By Skor Team',
-                border: OutlineInputBorder(),
-              ),
-              value: controller.selectedVisitBySkorTeam,
-              items: VisitBySkorTeam.values.map((team) {
-                return DropdownMenuItem(
-                  value: team,
-                  child: Text(team.displayName),
-                );
-              }).toList(),
-              onChanged: (team) {
-                if (team != null) {
-                  controller.setSelectedVisitBySkorTeam(team);
-                }
-              },
-            ),
           ],
         ),
       ),
@@ -765,49 +764,6 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               },
               onChanged: (value) {
                 context.read<ContactabilityController>().setVisitNotes(value);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAgentInfoSection() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Agent Information',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _visitAgentController,
-              decoration: const InputDecoration(
-                labelText: 'Visit Agent',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                context.read<ContactabilityController>().setVisitAgent(value);
-              },
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _visitAgentTeamLeadController,
-              decoration: const InputDecoration(
-                labelText: 'Visit Agent Team Lead',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: (value) {
-                context
-                    .read<ContactabilityController>()
-                    .setVisitAgentTeamLead(value);
               },
             ),
           ],

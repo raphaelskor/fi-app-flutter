@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../../core/services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -9,71 +11,183 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final Map<String, String> userInfo = {
-    'name': 'Field Investigator 007',
-    'email': 'fi.007@example.com',
-    'role': 'Field Investigator',
-    'team': 'Alpha Team',
-  };
-
-  // Dummy data attendance 2 minggu terakhir (rotasi H/I/S/A)
+  // Real attendance data from API
   Map<DateTime, String> attendanceMap = {};
-
+  bool isLoadingAttendance = true;
   String? selectedAttendance;
   bool submittedToday = false;
+  bool isSubmittingAttendance = false;
 
   DateTime today = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    // Generate dummy data untuk 14 hari terakhir
-    for (int i = 0; i < 14; i++) {
-      DateTime date = _dateOnly(today.subtract(Duration(days: i)));
-      String status;
-      switch (i % 4) {
-        case 0:
-          status = 'H';
-          break;
-        case 1:
-          status = 'I';
-          break;
-        case 2:
-          status = 'S';
-          break;
-        default:
-          status = 'A';
-      }
-      attendanceMap[date] = status;
-    }
-    // Cek apakah sudah submit hari ini
-    submittedToday = attendanceMap.containsKey(_dateOnly(today));
-    selectedAttendance = attendanceMap[_dateOnly(today)];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchAttendanceHistory();
+    });
   }
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 
-  void _submitAttendance() {
-    final now = DateTime.now();
-    final deadline = DateTime(now.year, now.month, now.day, 8, 0, 0);
-    String status = selectedAttendance ?? 'A';
+  Future<void> _fetchAttendanceHistory() async {
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final userData = authService.userData;
 
-    if (now.isAfter(deadline)) {
-      status = 'A'; // Alpha jika lewat jam 8 pagi
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Terlambat submit, otomatis Alpha')),
+      if (userData == null || userData['id'] == null) {
+        setState(() {
+          isLoadingAttendance = false;
+        });
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse(
+            'https://n8n.skorcard.app/webhook/ba90b87e-b65f-4574-bcf0-223d54b022cf'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'user_id': userData['id'],
+        }),
       );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        setState(() {
+          attendanceMap.clear();
+
+          if (data is List) {
+            for (var item in data) {
+              if (item['date'] != null && item['attendance'] != null) {
+                DateTime date = DateTime.parse(item['date']);
+                String attendance = item['attendance'].toString();
+
+                // Convert attendance status to single letter
+                String status = _convertAttendanceToStatus(attendance);
+                attendanceMap[_dateOnly(date)] = status;
+              }
+            }
+          }
+
+          // Check if user has submitted today
+          submittedToday = attendanceMap.containsKey(_dateOnly(today));
+          selectedAttendance = attendanceMap[_dateOnly(today)];
+          isLoadingAttendance = false;
+        });
+      } else {
+        setState(() {
+          isLoadingAttendance = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to load attendance history')),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        isLoadingAttendance = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading attendance: $e')),
+        );
+      }
     }
+  }
+
+  String _convertAttendanceToStatus(String attendance) {
+    switch (attendance.toLowerCase()) {
+      case 'hadir':
+        return 'H';
+      case 'izin':
+        return 'I';
+      case 'sakit':
+        return 'S';
+      case 'alpha':
+        return 'A';
+      default:
+        return 'A';
+    }
+  }
+
+  String _convertStatusToAttendance(String status) {
+    switch (status) {
+      case 'H':
+        return 'Hadir';
+      case 'I':
+        return 'Izin';
+      case 'S':
+        return 'Sakit';
+      case 'A':
+        return 'Alpha';
+      default:
+        return 'Alpha';
+    }
+  }
+
+  Future<void> _submitAttendance() async {
+    if (selectedAttendance == null) return;
 
     setState(() {
-      attendanceMap[_dateOnly(now)] = status;
-      submittedToday = true;
-      selectedAttendance = status;
+      isSubmittingAttendance = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Attendance hari ini: ${_statusLabel(status)}')),
-    );
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final userData = authService.userData;
+
+      if (userData == null || userData['id'] == null) {
+        throw Exception('User data not available');
+      }
+
+      final attendanceText = _convertStatusToAttendance(selectedAttendance!);
+
+      final response = await http.post(
+        Uri.parse(
+            'https://n8n.skorcard.app/webhook/491ba156-a378-4d24-aaf8-bcd2d4ddd235'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'user_id': userData['id'],
+          'attendance': attendanceText,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // Refresh attendance history to get the updated data
+        await _fetchAttendanceHistory();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('Attendance submitted successfully: $attendanceText'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        throw Exception('Failed to submit attendance');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error submitting attendance: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        isSubmittingAttendance = false;
+      });
+    }
   }
 
   Color _statusColor(String? status) {
@@ -110,204 +224,278 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final firstDay = today.subtract(Duration(days: 29));
     final lastDay = today;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Profile'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: () async {
-              await Provider.of<AuthService>(context, listen: false).logout();
-            },
+    return Consumer<AuthService>(
+      builder: (context, authService, child) {
+        final userData = authService.userData;
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('Profile'),
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            actions: [
+              IconButton(
+                icon: Icon(Icons.logout),
+                onPressed: () async {
+                  await Provider.of<AuthService>(context, listen: false)
+                      .logout();
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    child: Icon(Icons.person, size: 60),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    userInfo['name']!,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    userInfo['role']!,
-                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                  ),
-                  SizedBox(height: 20),
-                ],
-              ),
-            ),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Contact Information',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 10),
-                    _buildInfoRow(Icons.email, 'Email', userInfo['email']!),
-                    _buildInfoRow(Icons.group, 'Team', userInfo['team']!),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Submit Attendance Hari Ini',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 10),
-                    if (!submittedToday)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          DropdownButtonFormField<String>(
-                            decoration: InputDecoration(
-                              labelText: 'Status Kehadiran',
-                              border: OutlineInputBorder(),
-                            ),
-                            value: selectedAttendance,
-                            items: [
-                              DropdownMenuItem(
-                                  value: 'H', child: Text('Hadir')),
-                              DropdownMenuItem(value: 'I', child: Text('Izin')),
-                              DropdownMenuItem(
-                                  value: 'S', child: Text('Sakit')),
-                              DropdownMenuItem(
-                                  value: 'A', child: Text('Alpha')),
-                            ],
-                            onChanged: (val) {
-                              setState(() {
-                                selectedAttendance = val;
-                              });
-                            },
-                          ),
-                          SizedBox(height: 10),
-                          ElevatedButton(
-                            onPressed: selectedAttendance == null
-                                ? null
-                                : _submitAttendance,
-                            child: Text('Submit'),
-                          ),
-                        ],
-                      )
-                    else
-                      Row(
-                        children: [
-                          Text(
-                            'Sudah submit hari ini: ',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                          Chip(
-                            label: Text(_statusLabel(selectedAttendance)),
-                            backgroundColor: _statusColor(selectedAttendance),
-                          ),
-                        ],
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        child: Icon(Icons.person, size: 60),
                       ),
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Attendance History (1 Bulan Terakhir)',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 10),
-                    TableCalendar(
-                      firstDay: firstDay,
-                      lastDay: lastDay,
-                      focusedDay: today,
-                      calendarFormat: CalendarFormat.month,
-                      headerStyle: HeaderStyle(
-                          formatButtonVisible: false, titleCentered: true),
-                      daysOfWeekStyle: DaysOfWeekStyle(
-                          weekdayStyle: TextStyle(fontWeight: FontWeight.bold)),
-                      calendarBuilders: CalendarBuilders(
-                        defaultBuilder: (context, day, focusedDay) {
-                          final status = attendanceMap[_dateOnly(day)];
-                          if (status != null) {
-                            return Center(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _statusColor(status).withOpacity(0.2),
-                                ),
-                                width: 35,
-                                height: 35,
-                                child: Center(
-                                  child: Text(
-                                    status,
-                                    style: TextStyle(
-                                      color: _statusColor(status),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                          return null;
-                        },
+                      SizedBox(height: 10),
+                      Text(
+                        userData?['name'] ?? 'Unknown User',
+                        style: TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.bold),
                       ),
-                    ),
-                    SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      Text(
+                        userData?['role'] ?? 'Unknown Role',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _legend('Hadir', Colors.green, 'H'),
-                        _legend('Izin', Colors.orange, 'I'),
-                        _legend('Sakit', Colors.blue, 'S'),
-                        _legend('Alpha', Colors.red, 'A'),
+                        Text(
+                          'Contact Information',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 10),
+                        _buildInfoRow(
+                            Icons.email, 'Email', userData?['email'] ?? 'N/A'),
+                        _buildInfoRow(Icons.phone, 'Mobile',
+                            userData?['mobile'] ?? 'N/A'),
+                        _buildInfoRow(
+                            Icons.group, 'Team', userData?['team'] ?? 'N/A'),
+                        _buildInfoRow(
+                            Icons.badge, 'Role', userData?['role'] ?? 'N/A'),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+                SizedBox(height: 20),
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Submit Attendance Hari Ini',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 10),
+                        if (isLoadingAttendance)
+                          Center(
+                            child: Column(
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 10),
+                                Text('Loading attendance data...'),
+                              ],
+                            ),
+                          )
+                        else if (!submittedToday)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              DropdownButtonFormField<String>(
+                                decoration: InputDecoration(
+                                  labelText: 'Status Kehadiran',
+                                  border: OutlineInputBorder(),
+                                ),
+                                value: selectedAttendance,
+                                items: [
+                                  DropdownMenuItem(
+                                      value: 'H', child: Text('Hadir')),
+                                  DropdownMenuItem(
+                                      value: 'I', child: Text('Izin')),
+                                  DropdownMenuItem(
+                                      value: 'S', child: Text('Sakit')),
+                                  DropdownMenuItem(
+                                      value: 'A', child: Text('Alpha')),
+                                ],
+                                onChanged: isSubmittingAttendance
+                                    ? null
+                                    : (val) {
+                                        setState(() {
+                                          selectedAttendance = val;
+                                        });
+                                      },
+                              ),
+                              SizedBox(height: 10),
+                              ElevatedButton(
+                                onPressed: (selectedAttendance == null ||
+                                        isSubmittingAttendance)
+                                    ? null
+                                    : _submitAttendance,
+                                child: isSubmittingAttendance
+                                    ? Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          SizedBox(
+                                            width: 16,
+                                            height: 16,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2),
+                                          ),
+                                          SizedBox(width: 8),
+                                          Text('Submitting...'),
+                                        ],
+                                      )
+                                    : Text('Submit'),
+                              ),
+                            ],
+                          )
+                        else
+                          Row(
+                            children: [
+                              Text(
+                                'Sudah submit hari ini: ',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              Chip(
+                                label: Text(_statusLabel(selectedAttendance)),
+                                backgroundColor:
+                                    _statusColor(selectedAttendance),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20),
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Attendance History (1 Bulan Terakhir)',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            if (isLoadingAttendance)
+                              SizedBox(
+                                width: 16,
+                                height: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            else
+                              IconButton(
+                                icon: Icon(Icons.refresh),
+                                onPressed: _fetchAttendanceHistory,
+                                tooltip: 'Refresh attendance history',
+                              ),
+                          ],
+                        ),
+                        SizedBox(height: 10),
+                        if (isLoadingAttendance)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Text('Loading attendance history...'),
+                            ),
+                          )
+                        else
+                          TableCalendar(
+                            firstDay: firstDay,
+                            lastDay: lastDay,
+                            focusedDay: today,
+                            calendarFormat: CalendarFormat.month,
+                            headerStyle: HeaderStyle(
+                                formatButtonVisible: false,
+                                titleCentered: true),
+                            daysOfWeekStyle: DaysOfWeekStyle(
+                                weekdayStyle:
+                                    TextStyle(fontWeight: FontWeight.bold)),
+                            calendarBuilders: CalendarBuilders(
+                              defaultBuilder: (context, day, focusedDay) {
+                                final status = attendanceMap[_dateOnly(day)];
+                                if (status != null) {
+                                  return Center(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _statusColor(status)
+                                            .withOpacity(0.2),
+                                      ),
+                                      width: 35,
+                                      height: 35,
+                                      child: Center(
+                                        child: Text(
+                                          status,
+                                          style: TextStyle(
+                                            color: _statusColor(status),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        if (!isLoadingAttendance) ...[
+                          SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _legend('Hadir', Colors.green, 'H'),
+                              _legend('Izin', Colors.orange, 'I'),
+                              _legend('Sakit', Colors.blue, 'S'),
+                              _legend('Alpha', Colors.red, 'A'),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

@@ -193,11 +193,19 @@ class _ContactabilityDetailsScreenState
       return const SizedBox.shrink();
     }
 
+    // Determine the section title based on channel
+    String sectionTitle = 'Images';
+    if (_isFieldVisit()) {
+      sectionTitle = 'Visit Images';
+    } else if (_isMessage()) {
+      sectionTitle = 'Message Images';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Visit Images',
+        Text(
+          sectionTitle,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
