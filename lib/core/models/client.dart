@@ -76,9 +76,29 @@ class Client {
       // Use current time if parsing fails
     }
 
+    // Logic to choose between Name1 and Full_Name
+    String clientName = '';
+    final name1 = json['Name1']?.toString();
+    final fullName = json['Full_Name']?.toString();
+    final lastName = json['Last_Name']?.toString();
+
+    if (name1 == null || name1.isEmpty) {
+      // If Name1 is null/empty, use Full_Name
+      clientName = fullName ?? '';
+    } else if (fullName != null && RegExp(r'^SC\d').hasMatch(fullName)) {
+      // If Full_Name starts with "SC" followed by a number, use Name1
+      clientName = name1;
+    } else if ((name1.isEmpty) && (fullName == null || fullName.isEmpty)) {
+      // If both Name1 and Full_Name are empty, use Last_Name
+      clientName = lastName ?? '';
+    } else {
+      // Default to Name1
+      clientName = name1;
+    }
+
     return Client(
       id: json['id']?.toString() ?? '',
-      name: json['Name1']?.toString() ?? '',
+      name: clientName,
       address: address,
       phone: json['Mobile']?.toString() ?? '',
       email: json['Email']?.toString(),
