@@ -115,9 +115,9 @@ class ContactabilityController extends ChangeNotifier {
 
   // Load contactability history from Skorcard API
   Future<void> loadContactabilityHistory({bool refresh = false}) async {
-    if (_skorUserId == null || _skorUserId!.isEmpty || _skorUserId == 'null') {
+    if (_clientId == null || _clientId!.isEmpty) {
       debugPrint(
-          'No valid Skor User ID available for contactability history: $_skorUserId');
+          'No valid Client ID available for contactability history: $_clientId');
       _contactabilityHistory.clear();
       _setLoadingState(ContactabilityLoadingState.loaded);
       return;
@@ -132,14 +132,14 @@ class ContactabilityController extends ChangeNotifier {
       _setLoadingState(ContactabilityLoadingState.loading);
 
       debugPrint(
-          '📡 Fetching contactability history for Skor User ID: $_skorUserId');
+          '📡 Fetching contactability history for Client ID: $_clientId');
 
       // Fetch data from Skorcard API with error handling
       final List<Map<String, dynamic>> rawHistory;
       try {
-        rawHistory = await _apiService.fetchContactabilityHistory(_skorUserId!);
+        rawHistory = await _apiService.fetchContactabilityHistory(_clientId!);
         debugPrint(
-            '✅ Fetched ${rawHistory.length} contactability records for $_skorUserId');
+            '✅ Fetched ${rawHistory.length} contactability records for $_clientId');
       } catch (apiError) {
         debugPrint('❌ API Error fetching contactability history: $apiError');
         _contactabilityHistory.clear();
@@ -152,13 +152,8 @@ class ContactabilityController extends ChangeNotifier {
       for (final item in rawHistory) {
         try {
           final history = ContactabilityHistory.fromSkorcardApi(item);
-          // Ensure this record belongs to the current client
-          if (history.skorUserId == _skorUserId) {
-            historyList.add(history);
-          } else {
-            debugPrint(
-                '⚠️ Skipping record with mismatched skorUserId: ${history.skorUserId} vs $_skorUserId');
-          }
+          // Add all records since we're filtering by client ID in the API call
+          historyList.add(history);
         } catch (e) {
           debugPrint('Error parsing contactability history item: $e');
           // Skip this item and continue with others
@@ -196,6 +191,11 @@ class ContactabilityController extends ChangeNotifier {
     String? ptpAmount,
     DateTime? ptpDate,
   }) async {
+    if (_clientId == null || _clientId!.isEmpty) {
+      _setError('Client ID not available');
+      return false;
+    }
+
     if (_skorUserId == null || _skorUserId!.isEmpty) {
       _setError('User ID not available');
       return false;
@@ -369,8 +369,8 @@ class ContactabilityController extends ChangeNotifier {
   }
 
   // Image management methods
-  void addImage(File image) {
-    if (_selectedImages.length < 3) {
+  void addImage(File image, {int maxImages = 3}) {
+    if (_selectedImages.length < maxImages) {
       _selectedImages.add(image);
       notifyListeners();
     }

@@ -371,30 +371,38 @@ class ApiService {
 
   // Fetch contactability history from Skorcard API
   Future<List<Map<String, dynamic>>> fetchContactabilityHistory(
-      String skorUserId) async {
+      String clientId) async {
     try {
       // Validate input
-      if (skorUserId.isEmpty || skorUserId.toLowerCase() == 'null') {
-        print('⚠️ Invalid skorUserId provided: $skorUserId');
+      if (clientId.isEmpty || clientId.toLowerCase() == 'null') {
+        print('⚠️ Invalid clientId provided: $clientId');
         return [];
       }
 
-      print('🔄 Fetching contactability history for user: $skorUserId');
+      print('🔄 Fetching contactability history for client: $clientId');
 
       final String baseUrl =
           'https://n8n.skorcard.app/webhook/0843b27d-6ead-4232-9499-adb2e09cc02e';
-      final String fullUrl = '$baseUrl?skor_user_id=$skorUserId';
 
-      print('🌐 Request URL: $fullUrl');
-      print('🔑 Skor User ID: $skorUserId');
+      // Prepare request body with client ID
+      final Map<String, dynamic> requestBody = {
+        'id': clientId,
+      };
 
-      final response = await _client.get(
-        Uri.parse(fullUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 30));
+      print('🌐 Request URL: $baseUrl');
+      print('🔑 Client ID: $clientId');
+      print('📄 Request Body: $requestBody');
+
+      final response = await _client
+          .post(
+            Uri.parse(baseUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: json.encode(requestBody),
+          )
+          .timeout(const Duration(seconds: 30));
 
       print('📊 Response Status: ${response.statusCode}');
       print('📄 Response Headers: ${response.headers}');

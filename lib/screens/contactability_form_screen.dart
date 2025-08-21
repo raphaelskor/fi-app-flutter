@@ -105,6 +105,10 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                     _buildImageUploadSection(controller),
                     const SizedBox(height: 20),
                   ],
+                  if (_selectedChannel == ContactabilityChannel.message) ...[
+                    _buildImageUploadSection(controller),
+                    const SizedBox(height: 20),
+                  ],
                   _buildContactResultSection(controller),
                   const SizedBox(height: 20),
                   _buildVisitNotesSection(),
@@ -325,6 +329,15 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         controller.setSelectedChannel(channel);
         setState(() {
           _selectedChannel = channel;
+          // Clear images when switching channels to respect new limits
+          if (channel == ContactabilityChannel.message &&
+              controller.selectedImages.length > 1) {
+            // If switching to message and have more than 1 image, clear all
+            controller.clearImages();
+          } else if (channel == ContactabilityChannel.call) {
+            // If switching to call (no images allowed), clear all
+            controller.clearImages();
+          }
         });
       },
       child: Container(
@@ -597,6 +610,12 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   }
 
   Widget _buildImageUploadSection(ContactabilityController controller) {
+    // Determine maximum images based on channel
+    final int maxImages =
+        _selectedChannel == ContactabilityChannel.visit ? 3 : 1;
+    final String channelName =
+        _selectedChannel == ContactabilityChannel.visit ? 'visit' : 'message';
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -611,7 +630,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Add up to 3 images for this visit',
+              'Add up to $maxImages ${maxImages == 1 ? 'image' : 'images'} for this $channelName',
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 12),
@@ -669,7 +688,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
             // Add image buttons
             Row(
               children: [
-                if (controller.selectedImages.length < 3) ...[
+                if (controller.selectedImages.length < maxImages) ...[
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () =>
@@ -696,10 +715,10 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                     ),
                   ),
                 ],
-                if (controller.selectedImages.length >= 3)
+                if (controller.selectedImages.length >= maxImages)
                   Expanded(
                     child: Text(
-                      'Maximum 3 images reached',
+                      'Maximum $maxImages ${maxImages == 1 ? 'image' : 'images'} reached',
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontStyle: FontStyle.italic,
@@ -945,6 +964,24 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   Future<void> _pickImage(
       ImageSource source, ContactabilityController controller) async {
     try {
+      // Determine maximum images based on channel
+      final int maxImages =
+          _selectedChannel == ContactabilityChannel.visit ? 3 : 1;
+
+      // Check if maximum limit is reached
+      if (controller.selectedImages.length >= maxImages) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Maximum $maxImages ${maxImages == 1 ? 'image' : 'images'} reached'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
       final ImagePicker picker = ImagePicker();
       final XFile? image = await picker.pickImage(
         source: source,
@@ -955,7 +992,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
 
       if (image != null) {
         final File imageFile = File(image.path);
-        controller.addImage(imageFile);
+        controller.addImage(imageFile, maxImages: maxImages);
       }
     } catch (e) {
       if (mounted) {
