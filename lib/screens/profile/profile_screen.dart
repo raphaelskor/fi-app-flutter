@@ -54,35 +54,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        // Check if response body is empty or null
+        if (response.body.isEmpty || response.body.trim().isEmpty) {
+          print(
+              '⚠️ Empty response body from attendance API - no data available');
+          setState(() {
+            attendanceMap.clear();
 
-        setState(() {
-          attendanceMap.clear();
+            // Check if user has submitted today
+            final todayKey = _dateOnly(today);
+            submittedToday = attendanceMap.containsKey(todayKey);
+            selectedAttendance = attendanceMap[todayKey];
+            isLoadingAttendance = false;
 
-          if (data is List) {
-            for (var item in data) {
-              if (item['date'] != null && item['attendance'] != null) {
-                DateTime date = DateTime.parse(item['date']);
-                String attendance = item['attendance'].toString();
+            print('📅 No attendance data - empty response from API');
+          });
+          return;
+        }
 
-                // Convert attendance status to single letter
-                String status = _convertAttendanceToStatus(attendance);
-                attendanceMap[_dateOnly(date)] = status;
+        try {
+          final data = json.decode(response.body);
+
+          setState(() {
+            attendanceMap.clear();
+
+            if (data is List && data.isNotEmpty) {
+              for (var item in data) {
+                if (item['date'] != null && item['attendance'] != null) {
+                  DateTime date = DateTime.parse(item['date']);
+                  String attendance = item['attendance'].toString();
+
+                  // Convert attendance status to single letter
+                  String status = _convertAttendanceToStatus(attendance);
+                  attendanceMap[_dateOnly(date)] = status;
+                }
               }
             }
-          }
+            // If data is empty or null, attendanceMap will remain empty
+            // This is normal behavior, not an error
 
-          // Check if user has submitted today
-          final todayKey = _dateOnly(today);
-          submittedToday = attendanceMap.containsKey(todayKey);
-          selectedAttendance = attendanceMap[todayKey];
-          isLoadingAttendance = false;
+            // Check if user has submitted today
+            final todayKey = _dateOnly(today);
+            submittedToday = attendanceMap.containsKey(todayKey);
+            selectedAttendance = attendanceMap[todayKey];
+            isLoadingAttendance = false;
 
-          // Debug log to check if today's attendance is found
-          print(
-              'Today: $todayKey, Submitted: $submittedToday, Attendance: $selectedAttendance');
-          print('All attendance data: $attendanceMap');
-        });
+            // Debug log to check if today's attendance is found
+            print(
+                'Today: $todayKey, Submitted: $submittedToday, Attendance: $selectedAttendance');
+            print('All attendance data: $attendanceMap');
+            print(
+                'Data received from API: ${data is List ? data.length : 0} records');
+          });
+        } catch (jsonError) {
+          print('❌ JSON Parse Error: $jsonError');
+          print('📄 Raw response: ${response.body}');
+
+          // Treat JSON parse errors as empty data (not an error to show user)
+          setState(() {
+            attendanceMap.clear();
+
+            // Check if user has submitted today
+            final todayKey = _dateOnly(today);
+            submittedToday = attendanceMap.containsKey(todayKey);
+            selectedAttendance = attendanceMap[todayKey];
+            isLoadingAttendance = false;
+
+            print(
+                '📅 Treating JSON parse error as no attendance data available');
+          });
+        }
       } else {
         setState(() {
           isLoadingAttendance = false;
@@ -96,13 +137,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     } catch (e) {
+      print('❌ Exception in _fetchAttendanceHistory: $e');
       setState(() {
         isLoadingAttendance = false;
       });
-      if (mounted) {
+
+      // Only show error to user if it's a network error, not a JSON parsing issue
+      if (mounted && !e.toString().contains('FormatException')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading attendance: $e')),
         );
+      } else {
+        // For FormatException (empty response), just log it without showing to user
+        print('📅 Empty or invalid response - treating as no attendance data');
       }
     }
   }
@@ -460,7 +507,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Center(
                             child: Padding(
                               padding: const EdgeInsets.all(20.0),
-                              child: Text('Loading attendance history...'),
+                              child: Column(
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 10),
+                                  Text('Loading attendance history...'),
+                                ],
+                              ),
+                            ),
+                          )
+                        else if (attendanceMap.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today_outlined,
+                                    size: 48,
+                                    color: Colors.grey[400],
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Belum ada data attendance',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Submit attendance hari ini untuk mulai tracking',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[500],
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
                             ),
                           )
                         else
@@ -505,7 +591,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               },
                             ),
                           ),
-                        if (!isLoadingAttendance) ...[
+                        if (!isLoadingAttendance &&
+                            attendanceMap.isNotEmpty) ...[
                           SizedBox(height: 10),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,

@@ -18,10 +18,7 @@ class BottomNavigation extends StatelessWidget {
           icon: Icon(Icons.people),
           label: 'Clients',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.history),
-          label: 'History',
-        ),
+        // Removed History tab for now
         BottomNavigationBarItem(
           icon: Icon(Icons.person),
           label: 'Profile',

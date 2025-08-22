@@ -88,7 +88,8 @@ class _ContactabilityDetailsScreenState
             if (_isCall()) _buildCallDetailsSection(),
 
             // WhatsApp/Message Details (if applicable)
-            if (_isMessage()) _buildMessageDetailsSection(),
+            if (_isMessage() && _hasMessageData())
+              _buildMessageDetailsSection(),
 
             // PTP Information (if available)
             _buildPTPSection(),
@@ -790,6 +791,27 @@ class _ContactabilityDetailsScreenState
             value.toLowerCase() == 'null' ||
             value.toLowerCase() == 'na')) return false;
     return true;
+  }
+
+  bool _hasMessageData() {
+    // Check if any message-related data exists
+    if (widget.contactability.messageSentFor != null &&
+        widget.contactability.messageSentFor!.isNotEmpty) return true;
+
+    if (widget.contactability.deliveredTimeIfAny != null &&
+        widget.contactability.deliveredTimeIfAny!.isNotEmpty) return true;
+
+    if (widget.contactability.readTimeIfAny != null &&
+        widget.contactability.readTimeIfAny!.isNotEmpty) return true;
+
+    if (_hasValue(widget.contactability.rawData['Whats_app_Channel']))
+      return true;
+    if (_hasValue(widget.contactability.rawData['Agent_WA_Sent_Name']))
+      return true;
+    if (_hasValue(widget.contactability.rawData['Agent_WA_Done_Time']))
+      return true;
+
+    return false;
   }
 
   bool _isFieldVisit() {

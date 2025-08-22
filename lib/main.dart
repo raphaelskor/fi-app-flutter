@@ -6,6 +6,7 @@ import 'package:field_investigator_app/screens/main_screen.dart';
 import 'package:field_investigator_app/core/services/auth_service.dart';
 import 'package:field_investigator_app/core/controllers/client_controller.dart';
 import 'package:field_investigator_app/core/controllers/contactability_controller.dart';
+import 'package:field_investigator_app/core/controllers/dashboard_controller.dart';
 import 'package:field_investigator_app/core/services/api_service.dart';
 
 void main() async {
@@ -35,7 +36,17 @@ class MyApp extends StatelessWidget {
           update: (context, authService, previous) =>
               previous ?? ClientController(authService),
         ),
-        ChangeNotifierProvider(create: (_) => ContactabilityController()),
+        ChangeNotifierProxyProvider<AuthService, ContactabilityController>(
+          create: (context) =>
+              ContactabilityController(context.read<AuthService>()),
+          update: (context, authService, previous) =>
+              previous ?? ContactabilityController(authService),
+        ),
+        ChangeNotifierProxyProvider<AuthService, DashboardController>(
+          create: (context) => DashboardController(context.read<AuthService>()),
+          update: (context, authService, previous) =>
+              previous ?? DashboardController(authService),
+        ),
       ],
       child: MaterialApp(
         title: 'Field Investigator',

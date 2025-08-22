@@ -909,6 +909,10 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
       initialDate: _selectedPtpDate ?? today,
       firstDate: today, // Can only select from today
       lastDate: maxDate, // Maximum 5 days ahead
+      selectableDayPredicate: (DateTime date) {
+        // Block Sundays (weekday 7)
+        return date.weekday != DateTime.sunday;
+      },
     );
     if (picked != null) {
       setState(() {

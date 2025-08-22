@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/controllers/contactability_controller.dart';
-import '../../core/models/contactability_history.dart';
-import '../../core/utils/app_utils.dart' as AppUtils;
+import '../../core/controllers/client_contactability_history_controller.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/auth_service.dart';
 import '../../widgets/common_widgets.dart';
+import '../contactability/contactability_details_screen.dart';
 
 class ContactabilityHistoryTab extends StatefulWidget {
   @override
@@ -12,188 +13,365 @@ class ContactabilityHistoryTab extends StatefulWidget {
 }
 
 class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
+  ClientContactabilityHistoryController? _controller;
+  bool _isInitialized = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      try {
-        // Initialize with empty client ID to get all history
-        context
-            .read<ContactabilityController>()
-            .initialize('all', skorUserId: null);
-      } catch (e) {
-        print('Error initializing ContactabilityHistoryTab: $e');
-      }
+      _initializeController();
     });
+  }
+
+  void _initializeController() async {
+    try {
+      // Get AuthService from context and create controller
+      final authService = context.read<AuthService>();
+      _controller =
+          ClientContactabilityHistoryController(ApiService(), authService);
+
+      setState(() {
+        _isInitialized = true;
+      });
+
+      // Load history after controller is set
+      await _controller?.loadHistory();
+    } catch (e) {
+      print('Error initializing ContactabilityHistoryTab: $e');
+      setState(() {
+        _isInitialized = true; // Still set as initialized even on error
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    // _controller.dispose(); // No dispose method in this controller
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ContactabilityController>(
-      builder: (context, controller, child) {
-        return RefreshIndicator(
-          onRefresh: () => controller.refresh(),
-          child: _buildContent(controller),
-        );
-      },
+    if (_controller == null || !_isInitialized) {
+      return const LoadingWidget(message: 'Initializing...');
+    }
+    return ChangeNotifierProvider.value(
+      value: _controller!,
+      child: Consumer<ClientContactabilityHistoryController>(
+        builder: (context, controller, child) {
+          return _buildContent(controller);
+        },
+      ),
     );
   }
 
-  Widget _buildContent(ContactabilityController controller) {
+  Widget _buildContent(ClientContactabilityHistoryController controller) {
     switch (controller.loadingState) {
-      case ContactabilityLoadingState.initial:
-      case ContactabilityLoadingState.loading:
+      case ClientContactabilityHistoryLoadingState.initial:
+      case ClientContactabilityHistoryLoadingState.loading:
         return const LoadingWidget(
             message: 'Loading contactability history...');
 
-      case ContactabilityLoadingState.error:
+      case ClientContactabilityHistoryLoadingState.error:
         return AppErrorWidget(
           message: controller.errorMessage ?? 'Failed to load history',
           onRetry: () => controller.refresh(),
         );
 
-      case ContactabilityLoadingState.loaded:
-      case ContactabilityLoadingState.submitted:
-        final history = controller.contactabilityHistory;
+      case ClientContactabilityHistoryLoadingState.loaded:
+        final history = controller.historyItems;
         if (history.isEmpty) {
           return _buildEmptyState();
         }
         return _buildHistoryList(history, controller);
 
-      case ContactabilityLoadingState.submitting:
-        return const LoadingWidget(message: 'Loading...');
+      case ClientContactabilityHistoryLoadingState.refreshing:
+        final history = controller.historyItems;
+        if (history.isEmpty) {
+          return const LoadingWidget(message: 'Loading...');
+        }
+        return _buildHistoryList(history, controller);
     }
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.history,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No contactability history yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Start contacting clients to see history here',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHistoryList(List<ContactabilityHistory> history,
-      ContactabilityController controller) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Contactability History',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 10),
-          Text(
-            'All prior conversations/calls with clients',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          ),
-          SizedBox(height: 20),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: NeverScrollableScrollPhysics(),
-            itemCount: history.length,
-            itemBuilder: (context, index) {
-              final contactability = history[index];
-              return _buildHistoryCard(contactability);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHistoryCard(ContactabilityHistory contactability) {
-    return Card(
-      margin: EdgeInsets.only(bottom: 15),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(15.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return RefreshIndicator(
+      onRefresh: () => _controller?.refresh() ?? Future.value(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'User ID: ${contactability.skorUserId}',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(_getChannelIconFromString(contactability.channel),
-                            size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          contactability.channelDisplayName,
-                          style:
-                              TextStyle(fontSize: 14, color: Colors.grey[700]),
-                        ),
-                      ],
-                    ),
-                  ],
+                Icon(
+                  Icons.history,
+                  size: 64,
+                  color: Colors.grey[400],
                 ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getResultColorFromString(contactability.result)
-                        .withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(5),
+                const SizedBox(height: 16),
+                Text(
+                  'No contactability history available yet',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
                   ),
-                  child: Text(
-                    contactability.resultDisplayName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _getResultColorFromString(contactability.result),
-                      fontWeight: FontWeight.w500,
-                    ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Start contacting clients to see history here',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Pull down to refresh',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[400],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryList(List<ClientContactabilityHistoryItem> history,
+      ClientContactabilityHistoryController controller) {
+    return RefreshIndicator(
+      onRefresh: () => controller.refresh(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              AppUtils.DateUtils.formatDisplayDateTime(
-                  contactability.contactedAt),
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              'Contactability History',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: 10),
             Text(
-              contactability.notes ?? 'No notes',
-              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+              'All prior conversations/calls with clients',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            SizedBox(height: 20),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: history.length,
+              itemBuilder: (context, index) {
+                final item = history[index];
+                return _buildHistoryCard(item);
+              },
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard(ClientContactabilityHistoryItem item) {
+    return Card(
+      margin: EdgeInsets.only(bottom: 15),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: InkWell(
+        onTap: () => _navigateToContactabilityDetails(item),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.clientName,
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(_getChannelIconFromString(item.channel),
+                                size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 4),
+                            Text(
+                              item.channel,
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.grey[700]),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildStatusChip(item.contactResult),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _controller?.formatDateTime(item.createdTime) ?? 'Unknown date',
+                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              ),
+              if (item.notes.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  item.notes,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                ),
+              ],
+
+              // Show additional info for visits
+              if (item.channel.toLowerCase().contains('visit')) ...[
+                if (item.visitLocation != null ||
+                    item.visitAction != null ||
+                    item.visitStatus != null) ...[
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  if (item.visitLocation != null)
+                    _buildInfoRow('Location', item.visitLocation!),
+                  if (item.visitAction != null)
+                    _buildInfoRow('Action', item.visitAction!),
+                  if (item.visitStatus != null)
+                    _buildInfoRow('Status', item.visitStatus!),
+                ],
+              ],
+
+              // Show PTP info if available
+              if (item.ptpAmount != null || item.ptpDate != null) ...[
+                const SizedBox(height: 8),
+                const Divider(),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.payment, size: 16, color: Colors.orange),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'PTP: ',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.orange),
+                    ),
+                    if (item.ptpAmount != null) Text('Rp${item.ptpAmount}'),
+                    if (item.ptpAmount != null && item.ptpDate != null)
+                      const Text(' • '),
+                    if (item.ptpDate != null) Text(item.ptpDate!),
+                  ],
+                ),
+              ],
+
+              // Show navigation hint
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.grey[400],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String status) {
+    Color backgroundColor;
+    Color textColor;
+
+    switch (status.toLowerCase()) {
+      case 'yes':
+      case 'success':
+      case 'completed':
+      case 'replied':
+      case 'connected':
+        backgroundColor = Colors.green[100]!;
+        textColor = Colors.green[800]!;
+        break;
+      case 'no':
+      case 'no answer':
+      case 'busy':
+      case 'failed':
+        backgroundColor = Colors.red[100]!;
+        textColor = Colors.red[800]!;
+        break;
+      default:
+        backgroundColor = Colors.grey[100]!;
+        textColor = Colors.grey[800]!;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          fontSize: 12,
+          color: textColor,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 60,
+            child: Text(
+              '$label:',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToContactabilityDetails(ClientContactabilityHistoryItem item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ContactabilityDetailsScreen(
+          contactability: item.toContactabilityHistory(),
         ),
       ),
     );
@@ -213,27 +391,6 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
         return Icons.email;
       default:
         return Icons.contact_phone;
-    }
-  }
-
-  Color _getResultColorFromString(String? result) {
-    if (result == null) return Colors.grey;
-
-    switch (result.toLowerCase()) {
-      case 'delivered':
-      case 'contacted':
-      case 'ptp':
-        return Colors.green;
-      case 'visited':
-      case 'read':
-        return Colors.blue;
-      case 'sent':
-      case 'not contacted':
-        return Colors.orange;
-      case 'not available':
-        return Colors.red;
-      default:
-        return Colors.grey;
     }
   }
 }

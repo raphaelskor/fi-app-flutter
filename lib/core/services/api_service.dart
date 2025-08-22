@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import '../config/env_config.dart';
 import '../exceptions/app_exception.dart';
 
@@ -619,7 +618,12 @@ class ApiService {
 
       // Add images
       if (images != null && images.isNotEmpty) {
-        for (int i = 0; i < images.length && i < 3; i++) {
+        // For message channel, use image1
+        // For visit channel, use image1, image2, image3
+        final bool isMessageChannel = data['Channel'] == 'Message';
+        final int maxImages = isMessageChannel ? 1 : 3;
+
+        for (int i = 0; i < images.length && i < maxImages; i++) {
           final image = images[i];
           final imageField = 'image${i + 1}';
 
@@ -631,7 +635,8 @@ class ApiService {
                   'image_${i + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg',
             ),
           );
-          print('📎 Added image ${i + 1}: ${image.path}');
+          print(
+              '📎 Added $imageField for ${data['Channel']} channel: ${image.path}');
         }
       }
 
@@ -735,13 +740,35 @@ class ApiService {
       print('📄 Response Body: ${response.body}');
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final List<dynamic> responseList = jsonDecode(response.body);
-        if (responseList.isNotEmpty) {
-          final responseData = responseList[0];
-          print('✅ Agent history fetched successfully');
-          return responseData;
-        } else {
-          print('⚠️ Empty response from agent history API');
+        // Check if response body is empty or null
+        if (response.body.isEmpty || response.body.trim().isEmpty) {
+          print('⚠️ Empty response body from API - no history available');
+          return {
+            'data': [],
+            'info': {'count': 0, 'more_records': false}
+          };
+        }
+
+        // Check if response is valid JSON
+        try {
+          final List<dynamic> responseList = jsonDecode(response.body);
+          if (responseList.isNotEmpty) {
+            final responseData = responseList[0];
+            print('✅ Agent history fetched successfully');
+            return responseData;
+          } else {
+            print('⚠️ Empty response array from agent history API');
+            return {
+              'data': [],
+              'info': {'count': 0, 'more_records': false}
+            };
+          }
+        } catch (jsonError) {
+          print('❌ JSON Parse Error: $jsonError');
+          print('📄 Raw response: ${response.body}');
+
+          // Return empty data instead of throwing error for bad JSON
+          print('⚠️ Invalid JSON response - treating as no history available');
           return {
             'data': [],
             'info': {'count': 0, 'more_records': false}
@@ -774,6 +801,143 @@ class ApiService {
         statusCode: 0,
       );
     }
+  }
+
+  /// Get dashboard performance data from Skorcard API
+  Future<Map<String, dynamic>> getDashboardPerformance({
+    required String fiOwnerEmail,
+  }) async {
+    try {
+      const String baseUrl =
+          'https://n8n.skorcard.app/webhook/e3f3398d-ff5a-4ce6-9cee-73ab201119fb';
+
+      // Prepare request body
+      final Map<String, dynamic> requestBody = {
+        'fi_owner': fiOwnerEmail,
+      };
+
+      print('🔄 Fetching dashboard performance data');
+      print('🔗 URL: $baseUrl');
+      print('📄 Request Body: $requestBody');
+
+      final response = await _client
+          .post(
+            Uri.parse(baseUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(requestBody),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      print('📡 Response Status Code: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Check if response body is empty or null
+        if (response.body.isEmpty || response.body.trim().isEmpty) {
+          print(
+              '⚠️ Empty response body from dashboard API - no data available');
+          return {
+            'visit': 0,
+            'rpc': 0,
+            'tpc': 0,
+            'ptp': 0,
+            'kp': 0,
+            'bp': 0,
+          };
+        }
+
+        // Check if response is valid JSON
+        try {
+          final List<dynamic> responseList = jsonDecode(response.body);
+          if (responseList.isNotEmpty) {
+            final responseData = responseList[0];
+            print('✅ Dashboard performance data fetched successfully');
+            print('📊 Response data: $responseData');
+
+            // Extract performance data from direct response format
+            // Expected format: [{"Visit_Count": 3, "RPC_Count": 3, ...}]
+            Map<String, dynamic> performanceData = {
+              'visit': _parseIntValue(responseData['Visit_Count']) ?? 0,
+              'rpc': _parseIntValue(responseData['RPC_Count']) ?? 0,
+              'tpc': _parseIntValue(responseData['TPC_Count']) ?? 0,
+              'ptp': _parseIntValue(responseData['PTP_Count']) ?? 0,
+              'kp': _parseIntValue(responseData['KP_Count']) ?? 0,
+              'bp': _parseIntValue(responseData['BP_Count']) ?? 0,
+            };
+
+            print('📈 Parsed performance data: $performanceData');
+            return performanceData;
+          } else {
+            print('⚠️ Empty response array from dashboard API');
+            return {
+              'visit': 0,
+              'rpc': 0,
+              'tpc': 0,
+              'ptp': 0,
+              'kp': 0,
+              'bp': 0,
+            };
+          }
+        } catch (jsonError) {
+          print('❌ JSON Parse Error: $jsonError');
+          print('📄 Raw response: ${response.body}');
+
+          // Return default values instead of throwing error for bad JSON
+          print('⚠️ Invalid JSON response - using default values');
+          return {
+            'visit': 0,
+            'rpc': 0,
+            'tpc': 0,
+            'ptp': 0,
+            'kp': 0,
+            'bp': 0,
+          };
+        }
+      } else {
+        print('❌ Failed to fetch dashboard data: ${response.statusCode}');
+        throw NetworkException(
+          message: 'Failed to fetch dashboard data: ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+    } on SocketException catch (e) {
+      print('❌ Socket Exception: $e');
+      throw const NetworkException(
+        message: 'No internet connection',
+        statusCode: 0,
+      );
+    } on HttpException catch (e) {
+      print('❌ HTTP Exception: $e');
+      throw const NetworkException(
+        message: 'Network error occurred',
+        statusCode: 0,
+      );
+    } catch (e) {
+      print('❌ Unexpected Error: $e');
+      if (e is AppException) rethrow;
+      throw NetworkException(
+        message: 'Unexpected error: ${e.toString()}',
+        statusCode: 0,
+      );
+    }
+  }
+
+  /// Helper method to parse integer values safely
+  int? _parseIntValue(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) {
+      try {
+        return int.parse(value);
+      } catch (e) {
+        print('Failed to parse int value: $value');
+        return null;
+      }
+    }
+    return null;
   }
 
   void dispose() {

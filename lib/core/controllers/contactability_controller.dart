@@ -5,6 +5,7 @@ import '../models/contactability_history.dart';
 import '../models/api_models.dart';
 import '../repositories/client_repository.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../exceptions/app_exception.dart';
 import '../services/location_service.dart';
 import 'package:geolocator/geolocator.dart';
@@ -22,6 +23,7 @@ class ContactabilityController extends ChangeNotifier {
   final ContactabilityRepository _contactabilityRepository =
       ContactabilityRepository();
   final ApiService _apiService = ApiService();
+  final AuthService _authService;
 
   // State
   ContactabilityLoadingState _loadingState = ContactabilityLoadingState.initial;
@@ -29,6 +31,9 @@ class ContactabilityController extends ChangeNotifier {
   Contactability? _selectedContactability;
   String? _errorMessage;
   PaginationMeta? _paginationMeta;
+
+  // Constructor
+  ContactabilityController(this._authService);
 
   // Form state
   String? _clientId;
@@ -216,6 +221,12 @@ class ContactabilityController extends ChangeNotifier {
         'Channel': _getChannelApiValue(_selectedChannel),
       };
 
+      // Add FI_Owner from user login
+      final userEmail = _authService.userData?['email'] as String?;
+      if (userEmail != null && userEmail.isNotEmpty) {
+        submitData['FI_Owner'] = userEmail;
+      }
+
       // Add location if available
       if (_currentLocation != null) {
         submitData['Visit_Lat_Long'] =
@@ -267,8 +278,9 @@ class ContactabilityController extends ChangeNotifier {
       // Submit to Skorcard API
       final bool success;
       if (_selectedImages.isNotEmpty &&
-          _selectedChannel == ContactabilityChannel.visit) {
-        // Use multipart API for visits with images
+          (_selectedChannel == ContactabilityChannel.visit ||
+              _selectedChannel == ContactabilityChannel.message)) {
+        // Use multipart API for visits and messages with images
         success = await _apiService.submitContactabilityWithImages(
           data: submitData,
           images: _selectedImages,
