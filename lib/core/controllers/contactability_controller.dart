@@ -244,11 +244,11 @@ class ContactabilityController extends ChangeNotifier {
             submitData['P2p_Amount'] = ptpAmount;
           }
           if (ptpDate != null) {
-            // Format date as DD/MM/YYYY
-            final day = ptpDate.day.toString().padLeft(2, '0');
-            final month = ptpDate.month.toString().padLeft(2, '0');
+            // Format date as YYYY-MM-DD for API
             final year = ptpDate.year.toString();
-            submitData['P2p_Date'] = '$day/$month/$year';
+            final month = ptpDate.month.toString().padLeft(2, '0');
+            final day = ptpDate.day.toString().padLeft(2, '0');
+            submitData['P2p_Date'] = '$year-$month-$day';
           }
         }
       }

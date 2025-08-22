@@ -441,14 +441,18 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
     final startIndex = lowerText.indexOf(lowerQuery);
     final endIndex = startIndex + lowerQuery.length;
 
+    // Ensure base style has black color
+    final baseStyle =
+        (style ?? const TextStyle()).copyWith(color: Colors.black);
+
     return RichText(
       text: TextSpan(
-        style: style ?? const TextStyle(color: Colors.black),
+        style: baseStyle,
         children: [
           TextSpan(text: text.substring(0, startIndex)),
           TextSpan(
             text: text.substring(startIndex, endIndex),
-            style: (style ?? const TextStyle(color: Colors.black)).copyWith(
+            style: baseStyle.copyWith(
               backgroundColor: Colors.yellow[200],
               fontWeight: FontWeight.bold,
             ),

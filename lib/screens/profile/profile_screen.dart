@@ -73,9 +73,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           // Check if user has submitted today
-          submittedToday = attendanceMap.containsKey(_dateOnly(today));
-          selectedAttendance = attendanceMap[_dateOnly(today)];
+          final todayKey = _dateOnly(today);
+          submittedToday = attendanceMap.containsKey(todayKey);
+          selectedAttendance = attendanceMap[todayKey];
           isLoadingAttendance = false;
+
+          // Debug log to check if today's attendance is found
+          print(
+              'Today: $todayKey, Submitted: $submittedToday, Attendance: $selectedAttendance');
+          print('All attendance data: $attendanceMap');
         });
       } else {
         setState(() {
@@ -83,7 +89,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to load attendance history')),
+            SnackBar(
+                content: Text(
+                    'Failed to load attendance history. Status: ${response.statusCode}')),
           );
         }
       }
@@ -132,6 +140,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _submitAttendance() async {
     if (selectedAttendance == null) return;
 
+    // Check if already submitted today to prevent multiple submissions
+    if (submittedToday) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Attendance already submitted for today'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       isSubmittingAttendance = true;
     });
@@ -159,8 +180,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       if (response.statusCode == 200) {
-        // Refresh attendance history to get the updated data
-        await _fetchAttendanceHistory();
+        // Update local state immediately to prevent multiple submissions
+        setState(() {
+          attendanceMap[_dateOnly(today)] = selectedAttendance!;
+          submittedToday = true;
+        });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -171,8 +195,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           );
         }
+
+        // Refresh attendance history to get the updated data from server
+        // Wait a bit to ensure the server has processed the submission
+        await Future.delayed(Duration(milliseconds: 500));
+        await _fetchAttendanceHistory();
       } else {
-        throw Exception('Failed to submit attendance');
+        throw Exception(
+            'Failed to submit attendance. Server responded with status: ${response.statusCode}');
       }
     } catch (e) {
       if (mounted) {
