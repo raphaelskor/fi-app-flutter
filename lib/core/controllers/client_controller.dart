@@ -4,6 +4,7 @@ import '../models/api_models.dart';
 import '../repositories/client_repository.dart';
 import '../exceptions/app_exception.dart';
 import '../services/location_service.dart';
+import '../services/auth_service.dart';
 import 'package:geolocator/geolocator.dart';
 
 enum ClientLoadingState {
@@ -15,6 +16,7 @@ enum ClientLoadingState {
 
 class ClientController extends ChangeNotifier {
   final ClientRepository _clientRepository = ClientRepository();
+  final AuthService _authService;
 
   // State
   ClientLoadingState _loadingState = ClientLoadingState.initial;
@@ -29,6 +31,9 @@ class ClientController extends ChangeNotifier {
   String? _searchQuery;
   String? _statusFilter;
   int _currentPage = 1;
+
+  // Constructor
+  ClientController(this._authService);
 
   // Getters
   ClientLoadingState get loadingState => _loadingState;
@@ -68,9 +73,18 @@ class ClientController extends ChangeNotifier {
 
       _setLoadingState(ClientLoadingState.loading);
 
+      // Get user email from AuthService
+      final userEmail = _authService.userData?['email'] as String?;
+      if (userEmail == null || userEmail.isEmpty) {
+        throw ValidationException(
+          message: 'User email not found. Please login again.',
+          statusCode: 400,
+        );
+      }
+
       // Use Skorcard API to fetch clients
       final response = await _clientRepository.getSkorcardClients(
-        userName: 'Skorcard',
+        fiOwnerEmail: userEmail,
         userLatitude: _userLocation?.latitude,
         userLongitude: _userLocation?.longitude,
       );
@@ -97,9 +111,18 @@ class ClientController extends ChangeNotifier {
     try {
       _setLoadingState(ClientLoadingState.loading);
 
+      // Get user email from AuthService
+      final userEmail = _authService.userData?['email'] as String?;
+      if (userEmail == null || userEmail.isEmpty) {
+        throw ValidationException(
+          message: 'User email not found. Please login again.',
+          statusCode: 400,
+        );
+      }
+
       // Use Skorcard API to fetch clients
       final response = await _clientRepository.getSkorcardClients(
-        userName: 'Skorcard',
+        fiOwnerEmail: userEmail,
         userLatitude: _userLocation?.latitude,
         userLongitude: _userLocation?.longitude,
       );

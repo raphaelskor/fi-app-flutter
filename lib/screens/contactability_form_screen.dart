@@ -567,7 +567,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 decoration: const InputDecoration(
                   labelText: 'PTP Amount',
                   border: OutlineInputBorder(),
-                  hintText: 'Enter amount (numbers only)',
+                  hintText: 'Enter amount',
                 ),
                 keyboardType: TextInputType.number,
                 validator: (value) {

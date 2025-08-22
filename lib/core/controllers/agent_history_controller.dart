@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../exceptions/app_exception.dart';
 import '../models/contactability_history.dart';
 
@@ -113,15 +114,15 @@ class AgentHistoryItem {
 
 class AgentHistoryController extends ChangeNotifier {
   final ApiService _apiService;
+  final AuthService _authService;
 
   AgentHistoryLoadingState _loadingState = AgentHistoryLoadingState.initial;
   List<AgentHistoryItem> _historyItems = [];
   String? _errorMessage;
   int _currentPage = 1;
   bool _hasMoreRecords = false;
-  final String _agentEmail = 'rosita@skor.co'; // Default agent email
 
-  AgentHistoryController(this._apiService);
+  AgentHistoryController(this._apiService, this._authService);
 
   // Getters
   AgentHistoryLoadingState get loadingState => _loadingState;
@@ -143,8 +144,14 @@ class AgentHistoryController extends ChangeNotifier {
     _clearError();
 
     try {
+      // Get user email from AuthService
+      final userEmail = _authService.userData?['email'] as String?;
+      if (userEmail == null || userEmail.isEmpty) {
+        throw Exception('User email not found. Please login again.');
+      }
+
       final response = await _apiService.getAgentContactabilityHistory(
-        agentEmail: _agentEmail,
+        fiOwnerEmail: userEmail,
         page: _currentPage,
         perPage: 20,
       );
@@ -176,8 +183,14 @@ class AgentHistoryController extends ChangeNotifier {
     _currentPage++;
 
     try {
+      // Get user email from AuthService
+      final userEmail = _authService.userData?['email'] as String?;
+      if (userEmail == null || userEmail.isEmpty) {
+        throw Exception('User email not found. Please login again.');
+      }
+
       final response = await _apiService.getAgentContactabilityHistory(
-        agentEmail: _agentEmail,
+        fiOwnerEmail: userEmail,
         page: _currentPage,
         perPage: 20,
       );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/controllers/agent_history_controller.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/auth_service.dart';
 import '../contactability/contactability_details_screen.dart';
 
 class HistoryListTab extends StatefulWidget {
@@ -18,13 +19,16 @@ class _HistoryListTabState extends State<HistoryListTab> {
   @override
   void initState() {
     super.initState();
-    _controller = AgentHistoryController(ApiService());
-    _scrollController.addListener(_onScroll);
 
     // Load initial data
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Get AuthService from context and create controller
+      final authService = context.read<AuthService>();
+      _controller = AgentHistoryController(ApiService(), authService);
       _controller.loadHistory();
     });
+
+    _scrollController.addListener(_onScroll);
   }
 
   @override

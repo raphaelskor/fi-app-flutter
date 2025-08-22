@@ -9,12 +9,19 @@ class ClientRepository {
 
   // Fetch clients from Skorcard API
   Future<ApiResponse<List<Client>>> getSkorcardClients({
-    String userName = 'Skorcard',
+    String? fiOwnerEmail,
     double? userLatitude,
     double? userLongitude,
   }) async {
     try {
-      final clientsData = await _apiService.fetchSkorcardClients(userName);
+      if (fiOwnerEmail == null || fiOwnerEmail.isEmpty) {
+        throw ValidationException(
+          message: 'fi_owner email is required to fetch clients',
+          statusCode: 400,
+        );
+      }
+
+      final clientsData = await _apiService.fetchSkorcardClients(fiOwnerEmail);
 
       final List<Client> clients = clientsData
           .map((clientData) => Client.fromSkorcardApi(clientData))

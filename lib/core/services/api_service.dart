@@ -255,23 +255,31 @@ class ApiService {
 
   // Skorcard API specific methods
   Future<List<Map<String, dynamic>>> fetchSkorcardClients(
-      String userName) async {
+      String fiOwnerEmail) async {
     try {
-      // Build URL with full_name parameter directly in the path
+      // Use POST method with fi_owner in request body
       const String baseUrl =
           'https://n8n.skorcard.app/webhook/a307571b-e8c4-45d2-9244-b40305896648';
-      final String url = '$baseUrl?full_name=$userName';
 
-      print('🔄 Calling Skorcard API with userName: $userName');
-      print('🔗 URL: $url');
+      // Prepare request body
+      final Map<String, dynamic> requestBody = {
+        'fi_owner': fiOwnerEmail,
+      };
 
-      final response = await _client.get(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ).timeout(EnvConfig.receiveTimeout);
+      print('🔄 Calling Skorcard API with fi_owner: $fiOwnerEmail');
+      print('🔗 URL: $baseUrl');
+      print('📄 Request Body: $requestBody');
+
+      final response = await _client
+          .post(
+            Uri.parse(baseUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(requestBody),
+          )
+          .timeout(EnvConfig.receiveTimeout);
 
       print('📡 Response Status Code: ${response.statusCode}');
       print('📄 Response Body Length: ${response.body.length}');
@@ -695,21 +703,32 @@ class ApiService {
 
   /// Get agent contactability history from Skorcard API
   Future<Map<String, dynamic>> getAgentContactabilityHistory({
-    required String agentEmail,
+    required String fiOwnerEmail,
     int page = 1,
     int perPage = 20,
   }) async {
     try {
       const String baseUrl =
           'https://n8n.skorcard.app/webhook/d540950f-85d2-4e2b-a054-7e5dfcef0379';
-      final String url =
-          '$baseUrl?agent_email=$agentEmail&page=$page&per_page=$perPage';
+
+      // Prepare request body
+      final Map<String, dynamic> requestBody = {
+        'fi_owner': fiOwnerEmail,
+      };
 
       print('🔄 Fetching agent contactability history');
-      print('🔗 URL: $url');
+      print('🔗 URL: $baseUrl');
+      print('📄 Request Body: $requestBody');
 
       final response = await _client
-          .get(Uri.parse(url))
+          .post(
+            Uri.parse(baseUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(requestBody),
+          )
           .timeout(const Duration(seconds: 30));
 
       print('📡 Response Status Code: ${response.statusCode}');
