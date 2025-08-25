@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../config/env_config.dart';
 import '../exceptions/app_exception.dart';
+import 'cache_service.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -11,6 +12,7 @@ class ApiService {
 
   late http.Client _client;
   String? _authToken;
+  final CacheService _cache = CacheService();
 
   void initialize() {
     _client = http.Client();
@@ -806,7 +808,20 @@ class ApiService {
   /// Get dashboard performance data from Skorcard API
   Future<Map<String, dynamic>> getDashboardPerformance({
     required String fiOwnerEmail,
+    bool forceRefresh = false,
   }) async {
+    // Check cache first (unless forced refresh)
+    final cacheKey =
+        CacheService.generateUserKey(fiOwnerEmail, 'dashboard_performance');
+
+    if (!forceRefresh) {
+      final cachedData = _cache.get<Map<String, dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('✅ Using cached dashboard performance data');
+        return cachedData;
+      }
+    }
+
     try {
       const String baseUrl =
           'https://n8n.skorcard.app/webhook/e3f3398d-ff5a-4ce6-9cee-73ab201119fb';
@@ -839,7 +854,7 @@ class ApiService {
         if (response.body.isEmpty || response.body.trim().isEmpty) {
           print(
               '⚠️ Empty response body from dashboard API - no data available');
-          return {
+          final defaultData = {
             'visit': 0,
             'rpc': 0,
             'tpc': 0,
@@ -847,6 +862,10 @@ class ApiService {
             'kp': 0,
             'bp': 0,
           };
+          // Cache the default data with shorter duration (1 minute)
+          _cache.set(cacheKey, defaultData,
+              duration: const Duration(minutes: 1));
+          return defaultData;
         }
 
         // Check if response is valid JSON
@@ -869,10 +888,15 @@ class ApiService {
             };
 
             print('📈 Parsed performance data: $performanceData');
+
+            // Cache the successful response (3 minutes for fresh data)
+            _cache.set(cacheKey, performanceData,
+                duration: const Duration(minutes: 3));
+
             return performanceData;
           } else {
             print('⚠️ Empty response array from dashboard API');
-            return {
+            final defaultData = {
               'visit': 0,
               'rpc': 0,
               'tpc': 0,
@@ -880,6 +904,10 @@ class ApiService {
               'kp': 0,
               'bp': 0,
             };
+            // Cache empty response with shorter duration
+            _cache.set(cacheKey, defaultData,
+                duration: const Duration(minutes: 1));
+            return defaultData;
           }
         } catch (jsonError) {
           print('❌ JSON Parse Error: $jsonError');
@@ -887,7 +915,7 @@ class ApiService {
 
           // Return default values instead of throwing error for bad JSON
           print('⚠️ Invalid JSON response - using default values');
-          return {
+          final defaultData = {
             'visit': 0,
             'rpc': 0,
             'tpc': 0,
@@ -895,6 +923,10 @@ class ApiService {
             'kp': 0,
             'bp': 0,
           };
+          // Cache error response with very short duration (30 seconds)
+          _cache.set(cacheKey, defaultData,
+              duration: const Duration(seconds: 30));
+          return defaultData;
         }
       } else {
         print('❌ Failed to fetch dashboard data: ${response.statusCode}');
@@ -938,6 +970,157 @@ class ApiService {
       }
     }
     return null;
+  }
+
+  /// Clear all cached data
+  void clearCache() {
+    _cache.clear();
+    print('🗑️ All API cache cleared');
+  }
+
+  /// Clear cache for specific user
+  void clearUserCache(String userEmail) {
+    final keysToRemove = <String>[];
+    // Since we can't iterate over cache keys directly, we'll use known patterns
+    final patterns = [
+      'dashboard_performance',
+      'attendance_history',
+      'contactability_history'
+    ];
+
+    for (final pattern in patterns) {
+      final key = CacheService.generateUserKey(userEmail, pattern);
+      if (_cache.has(key)) {
+        keysToRemove.add(key);
+      }
+    }
+
+    for (final key in keysToRemove) {
+      _cache.remove(key);
+    }
+
+    print('🗑️ Cache cleared for user: $userEmail');
+  }
+
+  /// Force refresh dashboard data
+  Future<Map<String, dynamic>> refreshDashboardPerformance({
+    required String fiOwnerEmail,
+  }) async {
+    return getDashboardPerformance(
+      fiOwnerEmail: fiOwnerEmail,
+      forceRefresh: true,
+    );
+  }
+
+  /// Get attendance history with caching
+  Future<List<dynamic>> getAttendanceHistory({
+    required String userId,
+    bool forceRefresh = false,
+  }) async {
+    // Check cache first (unless forced refresh)
+    final cacheKey = CacheService.generateUserKey(userId, 'attendance_history');
+
+    if (!forceRefresh) {
+      final cachedData = _cache.get<List<dynamic>>(cacheKey);
+      if (cachedData != null) {
+        print('✅ Using cached attendance history data');
+        return cachedData;
+      }
+    }
+
+    try {
+      const String baseUrl =
+          'https://n8n.skorcard.app/webhook/ba90b87e-b65f-4574-bcf0-223d54b022cf';
+
+      final Map<String, dynamic> requestBody = {
+        'user_id': userId,
+      };
+
+      print('🔄 Fetching attendance history data');
+      print('🔗 URL: $baseUrl');
+      print('📄 Request Body: $requestBody');
+
+      final response = await _client
+          .post(
+            Uri.parse(baseUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(requestBody),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      print('📡 Response Status Code: ${response.statusCode}');
+      print('📄 Response Body: ${response.body}');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Check if response body is empty or null
+        if (response.body.isEmpty || response.body.trim().isEmpty) {
+          print(
+              '⚠️ Empty response body from attendance API - no data available');
+          final emptyData = <dynamic>[];
+          // Cache empty response with shorter duration (1 minute)
+          _cache.set(cacheKey, emptyData, duration: const Duration(minutes: 1));
+          return emptyData;
+        }
+
+        // Parse JSON response
+        try {
+          final List<dynamic> responseList = jsonDecode(response.body);
+          print('✅ Attendance history data fetched successfully');
+          print('📊 Response data: $responseList');
+
+          // Cache the successful response (5 minutes)
+          _cache.set(cacheKey, responseList,
+              duration: const Duration(minutes: 5));
+
+          return responseList;
+        } catch (jsonError) {
+          print('❌ JSON Parse Error: $jsonError');
+          print('📄 Raw response: ${response.body}');
+
+          // Return empty list for bad JSON
+          print('⚠️ Invalid JSON response - using empty list');
+          final emptyData = <dynamic>[];
+          // Cache error response with very short duration (30 seconds)
+          _cache.set(cacheKey, emptyData,
+              duration: const Duration(seconds: 30));
+          return emptyData;
+        }
+      } else {
+        print('❌ HTTP Error ${response.statusCode}: ${response.body}');
+        throw ServerException(
+          message: 'Attendance API returned error: ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+    } on SocketException {
+      print('❌ Network Error: No internet connection');
+      throw const NetworkException(
+        message: 'No internet connection',
+        statusCode: 0,
+      );
+    } on TimeoutException {
+      print('❌ Timeout Error: Request timed out');
+      throw const NetworkException(
+        message: 'Request timeout',
+        statusCode: 408,
+      );
+    } on HttpException catch (e) {
+      print('❌ HTTP Exception: $e');
+      throw const NetworkException(
+        message: 'Network error occurred',
+        statusCode: 0,
+      );
+    } catch (e) {
+      print('❌ Unexpected Error: $e');
+      if (e is AppException) rethrow;
+      throw NetworkException(
+        message: 'Unexpected error: ${e.toString()}',
+        statusCode: 0,
+      );
+    }
   }
 
   void dispose() {

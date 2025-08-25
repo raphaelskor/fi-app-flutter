@@ -28,15 +28,17 @@ class DashboardController extends ChangeNotifier {
     'bp': 0,
   };
   String? _errorMessage;
+  DateTime? _lastRefresh;
 
   // Getters
   DashboardLoadingState get loadingState => _loadingState;
   Map<String, int> get performanceData => _performanceData;
   String? get errorMessage => _errorMessage;
   bool get isLoading => _loadingState == DashboardLoadingState.loading;
+  DateTime? get lastRefresh => _lastRefresh;
 
   // Load dashboard performance data
-  Future<void> loadDashboardData() async {
+  Future<void> loadDashboardData({bool forceRefresh = false}) async {
     try {
       _setLoadingState(DashboardLoadingState.loading);
 
@@ -47,12 +49,14 @@ class DashboardController extends ChangeNotifier {
         return;
       }
 
-      debugPrint('🔄 Loading dashboard data for user: $userEmail');
+      debugPrint(
+          '🔄 Loading dashboard data for user: $userEmail ${forceRefresh ? '(force refresh)' : '(cached if available)'}');
 
       // Fetch dashboard data from API
       final Map<String, dynamic> responseData =
           await _apiService.getDashboardPerformance(
         fiOwnerEmail: userEmail,
+        forceRefresh: forceRefresh,
       );
 
       // Update performance data
@@ -64,6 +68,8 @@ class DashboardController extends ChangeNotifier {
         'kp': responseData['kp'] ?? 0,
         'bp': responseData['bp'] ?? 0,
       };
+
+      _lastRefresh = DateTime.now();
 
       debugPrint('✅ Dashboard data loaded successfully: $_performanceData');
       debugPrint(
@@ -77,7 +83,13 @@ class DashboardController extends ChangeNotifier {
 
   // Refresh dashboard data
   Future<void> refresh() async {
-    await loadDashboardData();
+    await loadDashboardData(forceRefresh: true);
+  }
+
+  // Manual refresh method for pull-to-refresh
+  Future<void> manualRefresh() async {
+    debugPrint('🔄 Manual refresh triggered');
+    await refresh();
   }
 
   // Calculate ratio

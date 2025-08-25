@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/models/contactability_history.dart';
 import '../../core/utils/app_utils.dart' as AppUtils;
 
@@ -428,9 +429,7 @@ class _ContactabilityDetailsScreenState
                         widget.contactability.visitDate!),
                   ),
                 if (widget.contactability.visitLatLong != null)
-                  _buildInfoRow(
-                    Icons.gps_fixed,
-                    'Coordinates',
+                  _buildCoordinatesRow(
                     widget.contactability.visitLatLong!,
                   ),
                 if (_hasValue(widget.contactability.rawData['Vist_Action']))
@@ -879,6 +878,74 @@ class _ContactabilityDetailsScreenState
         return Colors.red;
       default:
         return Colors.grey;
+    }
+  }
+
+  Widget _buildCoordinatesRow(String coordinates) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          Icon(Icons.gps_fixed, size: 16, color: Colors.grey[600]),
+          const SizedBox(width: 8),
+          const Text(
+            'Coordinates: ',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Expanded(
+            child: Text(coordinates),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.map, color: Colors.blue, size: 20),
+            onPressed: () {
+              _openGoogleMaps(coordinates);
+            },
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Buka di Google Maps',
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openGoogleMaps(String coordinates) async {
+    try {
+      // Format: "latitude,longitude"
+      final coords = coordinates.split(',');
+      if (coords.length == 2) {
+        final lat = coords[0].trim();
+        final lng = coords[1].trim();
+
+        final url = Uri.parse(
+            'https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tidak dapat membuka Google Maps'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Format koordinat tidak valid'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error membuka Google Maps'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

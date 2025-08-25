@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../core/services/auth_service.dart';
+import '../../core/services/api_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   @override
@@ -17,6 +18,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? selectedAttendance;
   bool submittedToday = false;
   bool isSubmittingAttendance = false;
+  final ApiService _apiService = ApiService();
 
   DateTime today = DateTime.now();
 
@@ -30,7 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
 
-  Future<void> _fetchAttendanceHistory() async {
+  Future<void> _fetchAttendanceHistory({bool forceRefresh = false}) async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final userData = authService.userData;
@@ -42,116 +44,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      final response = await http.post(
-        Uri.parse(
-            'https://n8n.skorcard.app/webhook/ba90b87e-b65f-4574-bcf0-223d54b022cf'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'user_id': userData['id'],
-        }),
+      // Use ApiService with caching
+      final responseList = await _apiService.getAttendanceHistory(
+        userId: userData['id'].toString(),
+        forceRefresh: forceRefresh,
       );
 
-      if (response.statusCode == 200) {
-        // Check if response body is empty or null
-        if (response.body.isEmpty || response.body.trim().isEmpty) {
-          print(
-              '⚠️ Empty response body from attendance API - no data available');
-          setState(() {
-            attendanceMap.clear();
+      setState(() {
+        attendanceMap.clear();
 
-            // Check if user has submitted today
-            final todayKey = _dateOnly(today);
-            submittedToday = attendanceMap.containsKey(todayKey);
-            selectedAttendance = attendanceMap[todayKey];
-            isLoadingAttendance = false;
+        if (responseList.isNotEmpty) {
+          for (var item in responseList) {
+            if (item['date'] != null && item['attendance'] != null) {
+              DateTime date = DateTime.parse(item['date']);
+              String attendance = item['attendance'].toString();
 
-            print('📅 No attendance data - empty response from API');
-          });
-          return;
-        }
-
-        try {
-          final data = json.decode(response.body);
-
-          setState(() {
-            attendanceMap.clear();
-
-            if (data is List && data.isNotEmpty) {
-              for (var item in data) {
-                if (item['date'] != null && item['attendance'] != null) {
-                  DateTime date = DateTime.parse(item['date']);
-                  String attendance = item['attendance'].toString();
-
-                  // Convert attendance status to single letter
-                  String status = _convertAttendanceToStatus(attendance);
-                  attendanceMap[_dateOnly(date)] = status;
-                }
-              }
+              // Convert attendance status to single letter
+              String status = _convertAttendanceToStatus(attendance);
+              attendanceMap[_dateOnly(date)] = status;
             }
-            // If data is empty or null, attendanceMap will remain empty
-            // This is normal behavior, not an error
-
-            // Check if user has submitted today
-            final todayKey = _dateOnly(today);
-            submittedToday = attendanceMap.containsKey(todayKey);
-            selectedAttendance = attendanceMap[todayKey];
-            isLoadingAttendance = false;
-
-            // Debug log to check if today's attendance is found
-            print(
-                'Today: $todayKey, Submitted: $submittedToday, Attendance: $selectedAttendance');
-            print('All attendance data: $attendanceMap');
-            print(
-                'Data received from API: ${data is List ? data.length : 0} records');
-          });
-        } catch (jsonError) {
-          print('❌ JSON Parse Error: $jsonError');
-          print('📄 Raw response: ${response.body}');
-
-          // Treat JSON parse errors as empty data (not an error to show user)
-          setState(() {
-            attendanceMap.clear();
-
-            // Check if user has submitted today
-            final todayKey = _dateOnly(today);
-            submittedToday = attendanceMap.containsKey(todayKey);
-            selectedAttendance = attendanceMap[todayKey];
-            isLoadingAttendance = false;
-
-            print(
-                '📅 Treating JSON parse error as no attendance data available');
-          });
+          }
         }
-      } else {
-        setState(() {
-          isLoadingAttendance = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    'Failed to load attendance history. Status: ${response.statusCode}')),
-          );
-        }
-      }
+        // If data is empty, attendanceMap will remain empty
+        // This is normal behavior, not an error
+
+        // Check if user has submitted today
+        final todayKey = _dateOnly(today);
+        submittedToday = attendanceMap.containsKey(todayKey);
+        selectedAttendance = attendanceMap[todayKey];
+        isLoadingAttendance = false;
+
+        // Debug log to check if today's attendance is found
+        print(
+            'Today: $todayKey, Submitted: $submittedToday, Attendance: $selectedAttendance');
+        print('All attendance data: $attendanceMap');
+        print('Data received from API: ${responseList.length} records');
+      });
     } catch (e) {
       print('❌ Exception in _fetchAttendanceHistory: $e');
       setState(() {
         isLoadingAttendance = false;
       });
 
-      // Only show error to user if it's a network error, not a JSON parsing issue
-      if (mounted && !e.toString().contains('FormatException')) {
+      // Only show error to user if it's a network error
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error loading attendance: $e')),
         );
-      } else {
-        // For FormatException (empty response), just log it without showing to user
-        print('📅 Empty or invalid response - treating as no attendance data');
       }
     }
+  }
+
+  /// Manual refresh method for pull-to-refresh
+  Future<void> _refreshAttendance() async {
+    await _fetchAttendanceHistory(forceRefresh: true);
   }
 
   String _convertAttendanceToStatus(String attendance) {
@@ -320,295 +266,299 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        child: Icon(Icons.person, size: 60),
-                      ),
-                      SizedBox(height: 10),
-                      Text(
-                        userData?['name'] ?? 'Unknown User',
-                        style: TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        userData?['role'] ?? 'Unknown Role',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                      ),
-                      SizedBox(height: 20),
-                    ],
-                  ),
-                ),
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+          body: RefreshIndicator(
+            onRefresh: _refreshAttendance,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Contact Information',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                        CircleAvatar(
+                          radius: 50,
+                          child: Icon(Icons.person, size: 60),
                         ),
                         SizedBox(height: 10),
-                        _buildInfoRow(
-                            Icons.email, 'Email', userData?['email'] ?? 'N/A'),
-                        _buildInfoRow(Icons.phone, 'Mobile',
-                            userData?['mobile'] ?? 'N/A'),
-                        _buildInfoRow(
-                            Icons.group, 'Team', userData?['team'] ?? 'N/A'),
-                        _buildInfoRow(
-                            Icons.badge, 'Role', userData?['role'] ?? 'N/A'),
+                        Text(
+                          userData?['name'] ?? 'Unknown User',
+                          style: TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          userData?['role'] ?? 'Unknown Role',
+                          style:
+                              TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        ),
+                        SizedBox(height: 20),
                       ],
                     ),
                   ),
-                ),
-                SizedBox(height: 20),
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Submit Attendance Hari Ini',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        SizedBox(height: 10),
-                        if (isLoadingAttendance)
-                          Center(
-                            child: Column(
-                              children: [
-                                CircularProgressIndicator(),
-                                SizedBox(height: 10),
-                                Text('Loading attendance data...'),
-                              ],
-                            ),
-                          )
-                        else if (!submittedToday)
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              DropdownButtonFormField<String>(
-                                decoration: InputDecoration(
-                                  labelText: 'Status Kehadiran',
-                                  border: OutlineInputBorder(),
-                                ),
-                                value: selectedAttendance,
-                                items: [
-                                  DropdownMenuItem(
-                                      value: 'H', child: Text('Hadir')),
-                                  DropdownMenuItem(
-                                      value: 'I', child: Text('Izin')),
-                                  DropdownMenuItem(
-                                      value: 'S', child: Text('Sakit')),
-                                  DropdownMenuItem(
-                                      value: 'A', child: Text('Alpha')),
-                                ],
-                                onChanged: isSubmittingAttendance
-                                    ? null
-                                    : (val) {
-                                        setState(() {
-                                          selectedAttendance = val;
-                                        });
-                                      },
-                              ),
-                              SizedBox(height: 10),
-                              ElevatedButton(
-                                onPressed: (selectedAttendance == null ||
-                                        isSubmittingAttendance)
-                                    ? null
-                                    : _submitAttendance,
-                                child: isSubmittingAttendance
-                                    ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                                strokeWidth: 2),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text('Submitting...'),
-                                        ],
-                                      )
-                                    : Text('Submit'),
-                              ),
-                            ],
-                          )
-                        else
-                          Row(
-                            children: [
-                              Text(
-                                'Sudah submit hari ini: ',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              Chip(
-                                label: Text(_statusLabel(selectedAttendance)),
-                                backgroundColor:
-                                    _statusColor(selectedAttendance),
-                              ),
-                            ],
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Contact Information',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
-                      ],
+                          SizedBox(height: 10),
+                          _buildInfoRow(Icons.email, 'Email',
+                              userData?['email'] ?? 'N/A'),
+                          _buildInfoRow(Icons.phone, 'Mobile',
+                              userData?['mobile'] ?? 'N/A'),
+                          _buildInfoRow(
+                              Icons.group, 'Team', userData?['team'] ?? 'N/A'),
+                          _buildInfoRow(
+                              Icons.badge, 'Role', userData?['role'] ?? 'N/A'),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(height: 20),
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Attendance History (1 Bulan Terakhir)',
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            if (isLoadingAttendance)
-                              SizedBox(
-                                width: 16,
-                                height: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            else
-                              IconButton(
-                                icon: Icon(Icons.refresh),
-                                onPressed: _fetchAttendanceHistory,
-                                tooltip: 'Refresh attendance history',
-                              ),
-                          ],
-                        ),
-                        SizedBox(height: 10),
-                        if (isLoadingAttendance)
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(20.0),
+                  SizedBox(height: 20),
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Submit Attendance Hari Ini',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(height: 10),
+                          if (isLoadingAttendance)
+                            Center(
                               child: Column(
                                 children: [
                                   CircularProgressIndicator(),
                                   SizedBox(height: 10),
-                                  Text('Loading attendance history...'),
+                                  Text('Loading attendance data...'),
                                 ],
                               ),
+                            )
+                          else if (!submittedToday)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                DropdownButtonFormField<String>(
+                                  decoration: InputDecoration(
+                                    labelText: 'Status Kehadiran',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  value: selectedAttendance,
+                                  items: [
+                                    DropdownMenuItem(
+                                        value: 'H', child: Text('Hadir')),
+                                    DropdownMenuItem(
+                                        value: 'I', child: Text('Izin')),
+                                    DropdownMenuItem(
+                                        value: 'S', child: Text('Sakit')),
+                                    DropdownMenuItem(
+                                        value: 'A', child: Text('Alpha')),
+                                  ],
+                                  onChanged: isSubmittingAttendance
+                                      ? null
+                                      : (val) {
+                                          setState(() {
+                                            selectedAttendance = val;
+                                          });
+                                        },
+                                ),
+                                SizedBox(height: 10),
+                                ElevatedButton(
+                                  onPressed: (selectedAttendance == null ||
+                                          isSubmittingAttendance)
+                                      ? null
+                                      : _submitAttendance,
+                                  child: isSubmittingAttendance
+                                      ? Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(
+                                                  strokeWidth: 2),
+                                            ),
+                                            SizedBox(width: 8),
+                                            Text('Submitting...'),
+                                          ],
+                                        )
+                                      : Text('Submit'),
+                                ),
+                              ],
+                            )
+                          else
+                            Row(
+                              children: [
+                                Text(
+                                  'Sudah submit hari ini: ',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                Chip(
+                                  label: Text(_statusLabel(selectedAttendance)),
+                                  backgroundColor:
+                                      _statusColor(selectedAttendance),
+                                ),
+                              ],
                             ),
-                          )
-                        else if (attendanceMap.isEmpty)
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(20.0),
-                              child: Column(
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today_outlined,
-                                    size: 48,
-                                    color: Colors.grey[400],
-                                  ),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    'Belum ada data attendance',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey[600],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    'Submit attendance hari ini untuk mulai tracking',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[500],
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Attendance History (1 Bulan Terakhir)',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
                               ),
-                            ),
-                          )
-                        else
-                          TableCalendar(
-                            firstDay: firstDay,
-                            lastDay: lastDay,
-                            focusedDay: today,
-                            calendarFormat: CalendarFormat.month,
-                            headerStyle: HeaderStyle(
-                                formatButtonVisible: false,
-                                titleCentered: true),
-                            daysOfWeekStyle: DaysOfWeekStyle(
-                                weekdayStyle:
-                                    TextStyle(fontWeight: FontWeight.bold)),
-                            calendarBuilders: CalendarBuilders(
-                              defaultBuilder: (context, day, focusedDay) {
-                                final status = attendanceMap[_dateOnly(day)];
-                                if (status != null) {
-                                  return Center(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: _statusColor(status)
-                                            .withOpacity(0.2),
+                              if (isLoadingAttendance)
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              else
+                                IconButton(
+                                  icon: Icon(Icons.refresh),
+                                  onPressed: _fetchAttendanceHistory,
+                                  tooltip: 'Refresh attendance history',
+                                ),
+                            ],
+                          ),
+                          SizedBox(height: 10),
+                          if (isLoadingAttendance)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: Column(
+                                  children: [
+                                    CircularProgressIndicator(),
+                                    SizedBox(height: 10),
+                                    Text('Loading attendance history...'),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else if (attendanceMap.isEmpty)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today_outlined,
+                                      size: 48,
+                                      color: Colors.grey[400],
+                                    ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'Belum ada data attendance',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.w500,
                                       ),
-                                      width: 35,
-                                      height: 35,
-                                      child: Center(
-                                        child: Text(
-                                          status,
-                                          style: TextStyle(
-                                            color: _statusColor(status),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Submit attendance hari ini untuk mulai tracking',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[500],
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            TableCalendar(
+                              firstDay: firstDay,
+                              lastDay: lastDay,
+                              focusedDay: today,
+                              calendarFormat: CalendarFormat.month,
+                              headerStyle: HeaderStyle(
+                                  formatButtonVisible: false,
+                                  titleCentered: true),
+                              daysOfWeekStyle: DaysOfWeekStyle(
+                                  weekdayStyle:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              calendarBuilders: CalendarBuilders(
+                                defaultBuilder: (context, day, focusedDay) {
+                                  final status = attendanceMap[_dateOnly(day)];
+                                  if (status != null) {
+                                    return Center(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: _statusColor(status)
+                                              .withOpacity(0.2),
+                                        ),
+                                        width: 35,
+                                        height: 35,
+                                        child: Center(
+                                          child: Text(
+                                            status,
+                                            style: TextStyle(
+                                              color: _statusColor(status),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                }
-                                return null;
-                              },
+                                    );
+                                  }
+                                  return null;
+                                },
+                              ),
                             ),
-                          ),
-                        if (!isLoadingAttendance &&
-                            attendanceMap.isNotEmpty) ...[
-                          SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _legend('Hadir', Colors.green, 'H'),
-                              _legend('Izin', Colors.orange, 'I'),
-                              _legend('Sakit', Colors.blue, 'S'),
-                              _legend('Alpha', Colors.red, 'A'),
-                            ],
-                          ),
+                          if (!isLoadingAttendance &&
+                              attendanceMap.isNotEmpty) ...[
+                            SizedBox(height: 10),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _legend('Hadir', Colors.green, 'H'),
+                                _legend('Izin', Colors.orange, 'I'),
+                                _legend('Sakit', Colors.blue, 'S'),
+                                _legend('Alpha', Colors.red, 'A'),
+                              ],
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
