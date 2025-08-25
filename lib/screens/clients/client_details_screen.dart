@@ -342,31 +342,8 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                if (_hasValue(clientData?['Date_of_Birth']))
-                  _iconDetailRow(Icons.cake, 'Date of Birth',
-                      clientData!['Date_of_Birth']),
-                if (_hasValue(clientData?['Place_of_Birth']))
-                  _iconDetailRow(Icons.location_city, 'Place of Birth',
-                      clientData!['Place_of_Birth']),
                 if (_hasValue(clientData?['Gender']))
                   _iconDetailRow(Icons.person, 'Gender', clientData!['Gender']),
-                if (_hasValue(clientData?['Marital_Status']))
-                  _iconDetailRow(Icons.favorite, 'Marital Status',
-                      clientData!['Marital_Status']),
-                if (_hasValue(clientData?['Spouse_Name']))
-                  _iconDetailRow(Icons.person_outline, 'Spouse Name',
-                      clientData!['Spouse_Name']),
-                if (_hasValue(clientData?['Mother_Name']))
-                  _iconDetailRow(
-                      Icons.woman, 'Mother Name', clientData!['Mother_Name']),
-                if (_hasValue(clientData?['Religion']))
-                  _iconDetailRow(
-                      Icons.place, 'Religion', clientData!['Religion']),
-                if (_hasValue(clientData?['Nationality']))
-                  _iconDetailRow(
-                      Icons.flag, 'Nationality', clientData!['Nationality']),
-                if (_hasValue(clientData?['NIK']))
-                  _iconDetailRow(Icons.credit_card, 'NIK', clientData!['NIK']),
               ],
             ),
           ),
@@ -460,36 +437,12 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                if (_hasValue(clientData?['User_ID']))
-                  _iconDetailRow(
-                      Icons.account_circle, 'User ID', clientData!['User_ID']),
-                if (_hasValue(clientData?['Income_IDR']))
-                  _iconDetailRow(Icons.attach_money, 'Income (IDR)',
-                      _formatCurrency(clientData!['Income_IDR'])),
-                if (_hasValue(clientData?['Credit_Limit']))
-                  _iconDetailRow(Icons.credit_card, 'Credit Limit',
-                      _formatCurrency(clientData!['Credit_Limit'])),
-                if (_hasValue(clientData?['Current_Outstanding_Balance']))
-                  _iconDetailRow(
-                      Icons.account_balance,
-                      'Outstanding Balance',
-                      _formatCurrency(
-                          clientData!['Current_Outstanding_Balance'])),
-                if (_hasValue(clientData?['Last_Payment_Amount']))
-                  _iconDetailRow(Icons.payment, 'Last Payment',
-                      _formatCurrency(clientData!['Last_Payment_Amount'])),
-                if (_hasValue(clientData?['Last_Payment_Date']))
-                  _iconDetailRow(Icons.date_range, 'Last Payment Date',
-                      clientData!['Last_Payment_Date']),
                 if (_hasValue(clientData?['Days_Past_Due']))
-                  _iconDetailRow(Icons.warning, 'Days Past Due',
+                  _iconDetailRow(Icons.warning, 'DPD',
                       '${clientData!['Days_Past_Due']} days'),
                 if (_hasValue(clientData?['DPD_Bucket']))
                   _iconDetailRow(
                       Icons.category, 'DPD Bucket', clientData!['DPD_Bucket']),
-                if (_hasValue(clientData?['Age_in_Bank']))
-                  _iconDetailRow(Icons.schedule, 'Age in Bank',
-                      '${clientData!['Age_in_Bank']} days'),
               ],
             ),
           ),
@@ -500,6 +453,41 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
 
   Widget _buildStatusSection() {
     final Map<String, dynamic>? clientData = _getClientApiData();
+
+    // Compose possible office address from common keys if available
+    String? officeAddress;
+    if (_hasValue(clientData?['Company_Address'])) {
+      officeAddress = clientData!['Company_Address'].toString();
+    } else if (_hasValue(clientData?['Office_Address'])) {
+      officeAddress = clientData!['Office_Address'].toString();
+    } else {
+      // Try to build from separate office address lines if provided
+      final parts = <String>[];
+      if (_hasValue(clientData?['Office_Address_Line_1'])) {
+        parts.add(clientData!['Office_Address_Line_1'].toString());
+      }
+      if (_hasValue(clientData?['Office_Address_Line_2'])) {
+        parts.add(clientData!['Office_Address_Line_2'].toString());
+      }
+      if (_hasValue(clientData?['Office_City'])) {
+        parts.add(clientData!['Office_City'].toString());
+      }
+      if (_hasValue(clientData?['Office_District'])) {
+        parts.add(clientData!['Office_District'].toString());
+      }
+      if (_hasValue(clientData?['Office_Sub_District'])) {
+        parts.add(clientData!['Office_Sub_District'].toString());
+      }
+      if (_hasValue(clientData?['Office_Province'])) {
+        parts.add(clientData!['Office_Province'].toString());
+      }
+      if (_hasValue(clientData?['Office_ZipCode'])) {
+        parts.add(clientData!['Office_ZipCode'].toString());
+      }
+      if (parts.isNotEmpty) {
+        officeAddress = parts.join(', ');
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -524,25 +512,9 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                 if (_hasValue(clientData?['Company_Name']))
                   _iconDetailRow(
                       Icons.business, 'Company', clientData!['Company_Name']),
-                if (_hasValue(clientData?['Length_of_Work']))
-                  _iconDetailRow(Icons.schedule, 'Work Length',
-                      clientData!['Length_of_Work']),
-                if (_hasValue(clientData?['Education_Details']))
-                  _iconDetailRow(Icons.school, 'Education',
-                      clientData!['Education_Details']),
-                _iconDetailRow(
-                    Icons.calendar_today,
-                    'Created',
-                    AppUtils.DateUtils.formatDisplayDate(
-                        widget.client.createdAt)),
-                _iconDetailRow(
-                    Icons.update,
-                    'Updated',
-                    AppUtils.DateUtils.formatDisplayDate(
-                        widget.client.updatedAt)),
-                if (widget.client.notes != null &&
-                    widget.client.notes!.isNotEmpty)
-                  _iconDetailRow(Icons.note, 'Notes', widget.client.notes!),
+                if (officeAddress != null && officeAddress.trim().isNotEmpty)
+                  _iconDetailRow(
+                      Icons.location_city, 'Office Address', officeAddress),
               ],
             ),
           ),
@@ -565,19 +537,6 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
             value.toLowerCase() == 'na')) return false;
     if (value is bool && !value) return false;
     return true;
-  }
-
-  String _formatCurrency(dynamic value) {
-    if (value == null) return 'N/A';
-    final String valueStr = value.toString();
-    if (valueStr.isEmpty || valueStr.toLowerCase() == 'null') return 'N/A';
-
-    try {
-      final num amount = num.parse(valueStr);
-      return 'Rp ${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (match) => '${match[1]},')}';
-    } catch (e) {
-      return valueStr;
-    }
   }
 
   Widget _buildContactabilityHistoryTab() {
