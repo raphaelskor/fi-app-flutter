@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../../core/controllers/client_controller.dart';
 import '../../core/models/client.dart';
@@ -477,6 +478,22 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
             ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => _openGoogleMaps(client.address),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.map,
+                  size: 16,
+                  color: Colors.blue[600],
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 5),
@@ -555,5 +572,36 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
         ),
       ),
     );
+  }
+
+  void _openGoogleMaps(String address) async {
+    final encodedAddress = Uri.encodeComponent(address);
+    final url =
+        'https://www.google.com/maps/search/?api=1&query=$encodedAddress';
+
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open Google Maps'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening Google Maps: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

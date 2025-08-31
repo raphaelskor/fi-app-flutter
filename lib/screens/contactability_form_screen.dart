@@ -348,12 +348,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         controller.setSelectedChannel(channel);
         setState(() {
           _selectedChannel = channel;
-          // Clear images when switching channels to respect new limits
-          if (channel == ContactabilityChannel.message &&
-              controller.selectedImages.length > 1) {
-            // If switching to message and have more than 1 image, clear all
-            controller.clearImages();
-          } else if (channel == ContactabilityChannel.call) {
+          // Clear images when switching channels if exceeding new limits
+          if (channel == ContactabilityChannel.call) {
             // If switching to call (no images allowed), clear all
             controller.clearImages();
           }
@@ -419,7 +415,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 controller.setSelectedVisitLocation(location);
               },
               validator: (value) {
-                if (value == null) {
+                if (_selectedChannel == ContactabilityChannel.visit &&
+                    value == null) {
                   return 'Please select visit location';
                 }
                 return null;
@@ -461,7 +458,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 controller.setSelectedVisitAction(action);
               },
               validator: (value) {
-                if (value == null) {
+                if (_selectedChannel == ContactabilityChannel.visit &&
+                    value == null) {
                   return 'Please select visit action';
                 }
                 return null;
@@ -503,7 +501,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 controller.setSelectedVisitStatus(status);
               },
               validator: (value) {
-                if (value == null) {
+                if (_selectedChannel == ContactabilityChannel.visit &&
+                    value == null) {
                   return 'Please select visit status';
                 }
                 return null;
@@ -609,9 +608,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   }
 
   Widget _buildImageUploadSection(ContactabilityController controller) {
-    // Determine maximum images based on channel
-    final int maxImages =
-        _selectedChannel == ContactabilityChannel.visit ? 3 : 1;
+    // Both visit and message channels now support up to 3 images
+    final int maxImages = 3;
     final String channelName =
         _selectedChannel == ContactabilityChannel.visit ? 'visit' : 'message';
 
@@ -734,6 +732,33 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   }
 
   Widget _buildVisitNotesSection() {
+    String title;
+    String labelText;
+    String hintText;
+
+    switch (_selectedChannel) {
+      case ContactabilityChannel.visit:
+        title = 'Visit Notes';
+        labelText = 'Enter visit notes';
+        hintText = 'Describe what happened during the visit...';
+        break;
+      case ContactabilityChannel.message:
+        title = 'Message Content';
+        labelText = 'Enter message content';
+        hintText = 'Enter the message sent to the client...';
+        break;
+      case ContactabilityChannel.call:
+        title = 'Call Notes';
+        labelText = 'Enter call notes';
+        hintText = 'Describe what happened during the call...';
+        break;
+      case null:
+        title = 'Notes';
+        labelText = 'Enter notes';
+        hintText = 'Enter your notes...';
+        break;
+    }
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -742,23 +767,23 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Visit Notes',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _visitNotesController,
-              decoration: const InputDecoration(
-                labelText: 'Enter visit notes',
-                hintText: 'Describe what happened during the visit...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: labelText,
+                hintText: hintText,
+                border: const OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
               maxLines: 4,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return 'Please enter visit notes';
+                  return 'This field is required';
                 }
                 return null;
               },
@@ -926,7 +951,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     try {
       // Determine maximum images based on channel
       final int maxImages =
-          _selectedChannel == ContactabilityChannel.visit ? 3 : 1;
+          _selectedChannel == ContactabilityChannel.call ? 0 : 3;
 
       // Check if maximum limit is reached
       if (controller.selectedImages.length >= maxImages) {

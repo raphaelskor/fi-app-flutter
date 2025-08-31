@@ -258,43 +258,43 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
 
     // Basic contact info
     if (_hasValue(clientData?['Mobile']))
-      contactRows
-          .add(_iconDetailRow(Icons.phone, 'Mobile', clientData!['Mobile']));
-    if (_hasValue(clientData?['Home_Phone']))
-      contactRows.add(
-          _iconDetailRow(Icons.home, 'Home Phone', clientData!['Home_Phone']));
-    if (_hasValue(clientData?['Office_Phone']))
       contactRows.add(_iconDetailRow(
-          Icons.business, 'Office Phone', clientData!['Office_Phone']));
+          Icons.phone, 'Mobile', _safeStringValue(clientData!['Mobile'])));
+    if (_hasValue(clientData?['Home_Phone']))
+      contactRows.add(_iconDetailRow(Icons.home, 'Home Phone',
+          _safeStringValue(clientData!['Home_Phone'])));
+    if (_hasValue(clientData?['Office_Phone']))
+      contactRows.add(_iconDetailRow(Icons.business, 'Office Phone',
+          _safeStringValue(clientData!['Office_Phone'])));
     if (_hasValue(clientData?['Any_other_phone_No']))
       contactRows.add(_iconDetailRow(Icons.phone_android, 'Other Phone',
-          clientData!['Any_other_phone_No']));
+          _safeStringValue(clientData!['Any_other_phone_No'])));
     if (_hasValue(clientData?['Email']))
-      contactRows
-          .add(_iconDetailRow(Icons.email, 'Email', clientData!['Email']));
+      contactRows.add(_iconDetailRow(
+          Icons.email, 'Email', _safeStringValue(clientData!['Email'])));
 
     // Emergency contacts
     if (_hasValue(clientData?['EC1_Name']))
-      contactRows.add(_iconDetailRow(
-          Icons.contact_phone, 'Emergency Contact 1', clientData!['EC1_Name']));
+      contactRows.add(_iconDetailRow(Icons.contact_phone, 'Emergency Contact 1',
+          _safeStringValue(clientData!['EC1_Name'])));
     if (_hasValue(clientData?['EC1_Phone']))
-      contactRows.add(
-          _iconDetailRow(Icons.phone, 'EC1 Phone', clientData!['EC1_Phone']));
+      contactRows.add(_iconDetailRow(Icons.phone, 'EC1 Phone',
+          _safeStringValue(clientData!['EC1_Phone'])));
     if (_hasValue(clientData?['EC1_Relation']))
-      contactRows.add(_iconDetailRow(
-          Icons.people, 'EC1 Relation', clientData!['EC1_Relation']));
+      contactRows.add(_iconDetailRow(Icons.people, 'EC1 Relation',
+          _safeStringValue(clientData!['EC1_Relation'])));
     if (_hasValue(clientData?['EC2_Name']))
-      contactRows.add(_iconDetailRow(
-          Icons.contact_phone, 'Emergency Contact 2', clientData!['EC2_Name']));
+      contactRows.add(_iconDetailRow(Icons.contact_phone, 'Emergency Contact 2',
+          _safeStringValue(clientData!['EC2_Name'])));
     if (_hasValue(clientData?['EC2_Phone']))
-      contactRows.add(
-          _iconDetailRow(Icons.phone, 'EC2 Phone', clientData!['EC2_Phone']));
+      contactRows.add(_iconDetailRow(Icons.phone, 'EC2 Phone',
+          _safeStringValue(clientData!['EC2_Phone'])));
     if (_hasValue(clientData?['EC2_Relation']))
-      contactRows.add(_iconDetailRow(
-          Icons.people, 'EC2 Relation', clientData!['EC2_Relation']));
+      contactRows.add(_iconDetailRow(Icons.people, 'EC2 Relation',
+          _safeStringValue(clientData!['EC2_Relation'])));
     if (_hasValue(clientData?['Emegency_Contact_Name']))
       contactRows.add(_iconDetailRow(Icons.phone, 'Emergency Contact',
-          clientData!['Emegency_Contact_Name']));
+          _safeStringValue(clientData!['Emegency_Contact_Name'])));
 
     // If no contact data from API, show basic info
     if (contactRows.isEmpty) {
@@ -343,7 +343,8 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
             child: Column(
               children: [
                 if (_hasValue(clientData?['Gender']))
-                  _iconDetailRow(Icons.person, 'Gender', clientData!['Gender']),
+                  _iconDetailRow(Icons.person, 'Gender',
+                      _safeStringValue(clientData!['Gender'])),
               ],
             ),
           ),
@@ -370,49 +371,49 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
               children: [
                 // Current Address
                 if (_hasValue(clientData?['CA_Line_1']))
-                  _iconDetailRow(
-                      Icons.home, 'Address Line 1', clientData!['CA_Line_1']),
+                  _iconDetailRow(Icons.home, 'Address Line 1',
+                      _safeStringValue(clientData!['CA_Line_1'])),
                 if (_hasValue(clientData?['CA_Line_2']))
-                  _iconDetailRow(
-                      Icons.home, 'Address Line 2', clientData!['CA_Line_2']),
+                  _iconDetailRow(Icons.home, 'Address Line 2',
+                      _safeStringValue(clientData!['CA_Line_2'])),
                 if (_hasValue(clientData?['CA_City']))
-                  _iconDetailRow(
-                      Icons.location_city, 'City', clientData!['CA_City']),
+                  _iconDetailRow(Icons.location_city, 'City',
+                      _safeStringValue(clientData!['CA_City'])),
                 if (_hasValue(clientData?['CA_District']))
-                  _iconDetailRow(
-                      Icons.map, 'District', clientData!['CA_District']),
+                  _iconDetailRow(Icons.map, 'District',
+                      _safeStringValue(clientData!['CA_District'])),
                 if (_hasValue(clientData?['CA_Sub_District']))
                   _iconDetailRow(Icons.place, 'Sub District',
-                      clientData!['CA_Sub_District']),
+                      _safeStringValue(clientData!['CA_Sub_District'])),
                 if (_hasValue(clientData?['CA_Province']))
                   _iconDetailRow(Icons.map_outlined, 'Province',
-                      clientData!['CA_Province']),
+                      _safeStringValue(clientData!['CA_Province'])),
                 if (_hasValue(clientData?['CA_ZipCode']))
                   _iconDetailRow(Icons.markunread_mailbox, 'Zip Code',
-                      clientData!['CA_ZipCode']),
+                      _safeStringValue(clientData!['CA_ZipCode'])),
                 if (_hasValue(clientData?['CA_RT_RW']))
-                  _iconDetailRow(
-                      Icons.home_outlined, 'RT/RW', clientData!['CA_RT_RW']),
+                  _iconDetailRow(Icons.home_outlined, 'RT/RW',
+                      _safeStringValue(clientData!['CA_RT_RW'])),
 
                 // KTP Address
                 if (_hasValue(clientData?['KTP_Address']))
                   _iconDetailRow(Icons.credit_card, 'KTP Address',
-                      clientData!['KTP_Address']),
+                      _safeStringValue(clientData!['KTP_Address'])),
                 if (_hasValue(clientData?['KTP_City']))
-                  _iconDetailRow(
-                      Icons.location_city, 'KTP City', clientData!['KTP_City']),
+                  _iconDetailRow(Icons.location_city, 'KTP City',
+                      _safeStringValue(clientData!['KTP_City'])),
                 if (_hasValue(clientData?['KTP_District']))
-                  _iconDetailRow(
-                      Icons.map, 'KTP District', clientData!['KTP_District']),
+                  _iconDetailRow(Icons.map, 'KTP District',
+                      _safeStringValue(clientData!['KTP_District'])),
                 if (_hasValue(clientData?['KTP_Village']))
-                  _iconDetailRow(
-                      Icons.place, 'KTP Village', clientData!['KTP_Village']),
+                  _iconDetailRow(Icons.place, 'KTP Village',
+                      _safeStringValue(clientData!['KTP_Village'])),
                 if (_hasValue(clientData?['KTP_Province']))
                   _iconDetailRow(Icons.map_outlined, 'KTP Province',
-                      clientData!['KTP_Province']),
+                      _safeStringValue(clientData!['KTP_Province'])),
                 if (_hasValue(clientData?['KTP_Postal_Code']))
                   _iconDetailRow(Icons.markunread_mailbox, 'KTP Postal Code',
-                      clientData!['KTP_Postal_Code']),
+                      _safeStringValue(clientData!['KTP_Postal_Code'])),
               ],
             ),
           ),
@@ -437,12 +438,37 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
+                // Loan Amounts
+                if (_hasValue(clientData?['Last_Statement_MAD']))
+                  _iconDetailRow(Icons.attach_money, 'Last Statement MAD',
+                      _formatCurrency(clientData!['Last_Statement_MAD'])),
+                if (_hasValue(clientData?['Last_Statement_TAD']))
+                  _iconDetailRow(
+                      Icons.account_balance_wallet,
+                      'Last Statement TAD',
+                      _formatCurrency(clientData!['Last_Statement_TAD'])),
+
+                // Payment Information
+                if (_hasValue(clientData?['Last_Payment_Amount']))
+                  _iconDetailRow(Icons.payment, 'Last Payment Amount',
+                      _formatCurrency(clientData!['Last_Payment_Amount'])),
+                if (_hasValue(clientData?['Last_Payment_Date']))
+                  _iconDetailRow(Icons.event, 'Last Payment Date',
+                      _formatDate(clientData!['Last_Payment_Date'])),
+                if (_hasValue(clientData?['Rep_Status_Current_Bill']))
+                  _iconDetailRow(Icons.category, 'Bill Status',
+                      _safeStringValue(clientData!['Rep_Status_Current_Bill'])),
+                if (_hasValue(clientData?['Repayment_Amount']))
+                  _iconDetailRow(Icons.event, 'Repayment Amount',
+                      _formatCurrency(clientData!['Repayment_Amount'])),
+
+                // DPD Information
                 if (_hasValue(clientData?['Days_Past_Due']))
                   _iconDetailRow(Icons.warning, 'DPD',
-                      '${clientData!['Days_Past_Due']} days'),
+                      '${_safeStringValue(clientData!['Days_Past_Due'])} days'),
                 if (_hasValue(clientData?['DPD_Bucket']))
-                  _iconDetailRow(
-                      Icons.category, 'DPD Bucket', clientData!['DPD_Bucket']),
+                  _iconDetailRow(Icons.category, 'DPD Bucket',
+                      _safeStringValue(clientData!['DPD_Bucket'])),
               ],
             ),
           ),
@@ -505,13 +531,14 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                 _iconDetailRow(Icons.info, 'Status',
                     AppUtils.StringUtils.capitalizeFirst(widget.client.status)),
                 if (_hasValue(clientData?['Job_Details']))
-                  _iconDetailRow(Icons.work, 'Job', clientData!['Job_Details']),
+                  _iconDetailRow(Icons.work, 'Job',
+                      _safeStringValue(clientData!['Job_Details'])),
                 if (_hasValue(clientData?['Position_Details']))
-                  _iconDetailRow(
-                      Icons.badge, 'Position', clientData!['Position_Details']),
+                  _iconDetailRow(Icons.badge, 'Position',
+                      _safeStringValue(clientData!['Position_Details'])),
                 if (_hasValue(clientData?['Company_Name']))
-                  _iconDetailRow(
-                      Icons.business, 'Company', clientData!['Company_Name']),
+                  _iconDetailRow(Icons.business, 'Company',
+                      _safeStringValue(clientData!['Company_Name'])),
                 if (officeAddress != null && officeAddress.trim().isNotEmpty)
                   _iconDetailRow(
                       Icons.location_city, 'Office Address', officeAddress),
@@ -537,6 +564,80 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
             value.toLowerCase() == 'na')) return false;
     if (value is bool && !value) return false;
     return true;
+  }
+
+  // Helper method to safely convert any value to string
+  String _safeStringValue(dynamic value) {
+    if (value == null) return 'N/A';
+    if (value is String) return value;
+    if (value is num) return value.toString();
+    return value.toString();
+  }
+
+  // Helper method to format currency values in Indonesian Rupiah
+  String _formatCurrency(dynamic value) {
+    if (value == null) return 'N/A';
+
+    // Convert to string and remove any existing formatting
+    String valueStr = value.toString().replaceAll(RegExp(r'[^\d.]'), '');
+
+    // Try to parse as double
+    double? amount = double.tryParse(valueStr);
+    if (amount == null) return value.toString();
+
+    // Format with Indonesian Rupiah style
+    final formatter = amount.toStringAsFixed(0);
+    final parts = <String>[];
+
+    // Add thousands separators
+    for (int i = formatter.length; i > 0; i -= 3) {
+      int start = i - 3 < 0 ? 0 : i - 3;
+      parts.insert(0, formatter.substring(start, i));
+    }
+
+    return 'Rp ${parts.join('.')}';
+  }
+
+  // Helper method to format date from YYYY-MM-DD to Indonesian format
+  String _formatDate(dynamic value) {
+    if (value == null) return 'N/A';
+
+    String dateStr = value.toString().trim();
+    if (dateStr.isEmpty || dateStr.toLowerCase() == 'null') return 'N/A';
+
+    try {
+      // Parse the date assuming YYYY-MM-DD format
+      final parts = dateStr.split('-');
+      if (parts.length != 3)
+        return dateStr; // Return original if not in expected format
+
+      final year = int.parse(parts[0]);
+      final month = int.parse(parts[1]);
+      final day = int.parse(parts[2]);
+
+      // Indonesian month names
+      const monthNames = [
+        '',
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember'
+      ];
+
+      if (month < 1 || month > 12) return dateStr;
+
+      return '$day ${monthNames[month]} $year';
+    } catch (e) {
+      return dateStr; // Return original string if parsing fails
+    }
   }
 
   Widget _buildContactabilityHistoryTab() {

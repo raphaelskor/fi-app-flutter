@@ -55,7 +55,8 @@ class Client {
     // Extract address from CA_Line_1 and CA_Line_2
     String address = '';
     if (json['CA_Line_1'] != null) {
-      address = json['CA_Line_1'].toString();
+      address =
+          json['CA_Line_1'].toString() + ', ' + json['CA_City'].toString();
       if (json['CA_Line_2'] != null) {
         address += ', ' + json['CA_Line_2'].toString();
       }
