@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -42,7 +43,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     super.initState();
     _selectedChannel = _parseChannel(widget.channel);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final controller = context.read<ContactabilityController>();
       final authService = context.read<AuthService>();
       final userData = authService.userData;
@@ -50,6 +51,13 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
       controller.initialize(widget.client.id,
           skorUserId: widget.client.skorUserId);
       controller.setSelectedChannel(_selectedChannel!);
+
+      // Auto-refresh location every time form is opened
+      try {
+        await controller.refreshLocation();
+      } catch (e) {
+        debugPrint('Failed to refresh location on form open: $e');
+      }
 
       // Auto-set Visit by Skor Team based on user's team
       if (userData != null && userData['team'] != null) {
@@ -217,9 +225,28 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   }
 
   Widget _buildDateTimeInfo(ContactabilityController controller) {
-    final dateFormat = DateFormat('dd/MM/yyyy');
     final timeFormat = DateFormat('HH:mm');
     final now = controller.contactabilityDateTime ?? DateTime.now();
+
+    // Indonesian date format
+    String formatIndonesianDate(DateTime date) {
+      const monthNames = [
+        '',
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember'
+      ];
+      return '${date.day} ${monthNames[date.month]} ${date.year}';
+    }
 
     return Card(
       elevation: 2,
@@ -246,7 +273,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        dateFormat.format(now),
+                        formatIndonesianDate(now),
                         style: TextStyle(color: Colors.grey[700]),
                       ),
                     ],
@@ -288,6 +315,15 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                         Text(
                           '${controller.currentLocation!.latitude.toStringAsFixed(6)}, ${controller.currentLocation!.longitude.toStringAsFixed(6)}',
                           style: TextStyle(color: Colors.grey[700]),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Klik tombol peta untuk memastikan lokasi sudah tepat',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[600],
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ],
                     ),
@@ -641,7 +677,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 ),
                 child: Text(
                   _selectedPtpDate != null
-                      ? DateFormat('dd/MM/yyyy').format(_selectedPtpDate!)
+                      ? _formatIndonesianDate(_selectedPtpDate!)
                       : 'Select PTP date',
                   style: TextStyle(
                     color: _selectedPtpDate != null
@@ -1003,6 +1039,25 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
       case ContactabilityChannel.visit:
         return 'Visit';
     }
+  }
+
+  String _formatIndonesianDate(DateTime date) {
+    const monthNames = [
+      '',
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember'
+    ];
+    return '${date.day} ${monthNames[date.month]} ${date.year}';
   }
 
   Future<void> _selectPtpDate() async {

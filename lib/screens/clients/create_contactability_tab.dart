@@ -28,6 +28,52 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
     });
   }
 
+  void _showCacheDebugInfo() async {
+    final controller = context.read<ClientController>();
+    final cacheInfo = await controller.getCacheInfo();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cache Debug Info'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Cached Date: ${cacheInfo['cachedDate'] ?? 'None'}'),
+              Text('Today Date: ${cacheInfo['todayDate']}'),
+              Text('Is Valid: ${cacheInfo['isValid']}'),
+              Text('Client Count: ${cacheInfo['clientCount']}'),
+              Text('Has Data: ${cacheInfo['hasData']}'),
+              if (cacheInfo['error'] != null)
+                Text('Error: ${cacheInfo['error']}',
+                    style: const TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await controller.clearCache();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Cache cleared!')),
+              );
+            },
+            child: const Text('Clear Cache'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -101,9 +147,12 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Today\'s Client List',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            GestureDetector(
+              onLongPress: _showCacheDebugInfo,
+              child: const Text(
+                'Today\'s Client List',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 5),
             Row(
@@ -135,6 +184,53 @@ class _CreateContactabilityTabState extends State<CreateContactabilityTab> {
                   ),
                 ],
               ],
+            ),
+            const SizedBox(height: 8),
+            // Cache status indicator
+            FutureBuilder<bool>(
+              future: controller.isDataFromCache(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data == true) {
+                  return Row(
+                    children: [
+                      Icon(
+                        Icons.cached,
+                        size: 14,
+                        color: Colors.green[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Data loaded from cache (today)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  );
+                } else if (snapshot.hasData && snapshot.data == false) {
+                  return Row(
+                    children: [
+                      Icon(
+                        Icons.cloud_download,
+                        size: 14,
+                        color: Colors.blue[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Fresh data from server',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue[600],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return const SizedBox.shrink();
+              },
             ),
           ],
         );

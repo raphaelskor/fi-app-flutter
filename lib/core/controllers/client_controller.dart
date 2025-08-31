@@ -5,6 +5,7 @@ import '../repositories/client_repository.dart';
 import '../exceptions/app_exception.dart';
 import '../services/location_service.dart';
 import '../services/auth_service.dart';
+import '../services/daily_cache_service.dart';
 import 'package:geolocator/geolocator.dart';
 
 enum ClientLoadingState {
@@ -50,8 +51,11 @@ class ClientController extends ChangeNotifier {
 
   // Initialize
   Future<void> initialize() async {
+    // Clear outdated cache on app startup
+    await DailyCacheService.clearOutdatedCache();
+
     await _getUserLocation();
-    await loadTodaysClients();
+    await loadTodaysClients(); // This will use cache if available
   }
 
   // Get user location
@@ -106,10 +110,25 @@ class ClientController extends ChangeNotifier {
     }
   }
 
-  // Load today's clients (same as regular clients for now)
-  Future<void> loadTodaysClients() async {
+  // Load today's clients with daily caching
+  Future<void> loadTodaysClients({bool forceRefresh = false}) async {
     try {
       _setLoadingState(ClientLoadingState.loading);
+
+      // Try to load from cache first (unless force refresh is requested)
+      if (!forceRefresh) {
+        final cachedClients = await DailyCacheService.loadCachedClients();
+        if (cachedClients != null) {
+          _todaysClients = cachedClients;
+          _clients = List.from(_todaysClients); // Keep both in sync
+          _setLoadingState(ClientLoadingState.loaded);
+          debugPrint('📦 Loaded ${cachedClients.length} clients from cache');
+          return;
+        }
+      }
+
+      // Cache miss or force refresh - load from API
+      debugPrint('🌐 Loading clients from API...');
 
       // Get user email from AuthService
       final userEmail = _authService.userData?['email'] as String?;
@@ -131,6 +150,11 @@ class ClientController extends ChangeNotifier {
         _todaysClients = response.data!;
         _clients = List.from(_todaysClients); // Keep both in sync
         _paginationMeta = response.pagination;
+
+        // Save to cache for next time
+        await DailyCacheService.saveTodaysClients(_todaysClients);
+        debugPrint('💾 Saved ${_todaysClients.length} clients to cache');
+
         _setLoadingState(ClientLoadingState.loaded);
       } else {
         _setError(response.message);
@@ -226,7 +250,7 @@ class ClientController extends ChangeNotifier {
   Future<void> refresh() async {
     await _getUserLocation();
     await loadClients(refresh: true);
-    await loadTodaysClients();
+    await loadTodaysClients(forceRefresh: true); // Force refresh from API
   }
 
   // Clear selection
@@ -239,6 +263,21 @@ class ClientController extends ChangeNotifier {
   void clearError() {
     _errorMessage = null;
     notifyListeners();
+  }
+
+  // Cache management methods
+  Future<Map<String, dynamic>> getCacheInfo() async {
+    return await DailyCacheService.getCacheInfo();
+  }
+
+  Future<void> clearCache() async {
+    await DailyCacheService.clearAllCache();
+    debugPrint('🗑️ Cache cleared manually');
+  }
+
+  // Check if data is from cache
+  Future<bool> isDataFromCache() async {
+    return await DailyCacheService.isCacheValidForToday();
   }
 
   // Private helper methods
