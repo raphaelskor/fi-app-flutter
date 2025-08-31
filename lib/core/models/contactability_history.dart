@@ -131,23 +131,23 @@ class ContactabilityHistory {
 
     if (json['Visit_Notes'] != null &&
         json['Visit_Notes'].toString().isNotEmpty) {
-      notesParts.add('Visit: ${json['Visit_Notes']}');
+      notesParts.add('${json['Visit_Notes']}');
     }
     if (json['Call_Notes'] != null &&
         json['Call_Notes'].toString().isNotEmpty) {
-      notesParts.add('Call: ${json['Call_Notes']}');
+      notesParts.add('${json['Call_Notes']}');
     }
     if (json['Agent_WA_Notes'] != null &&
         json['Agent_WA_Notes'].toString().isNotEmpty) {
-      notesParts.add('WhatsApp: ${json['Agent_WA_Notes']}');
+      notesParts.add('${json['Agent_WA_Notes']}');
     }
     if (json['Educational_Call_Notes'] != null &&
         json['Educational_Call_Notes'].toString().isNotEmpty) {
-      notesParts.add('Education: ${json['Educational_Call_Notes']}');
+      notesParts.add('${json['Educational_Call_Notes']}');
     }
     if (json['Message_Sent_For'] != null &&
         json['Message_Sent_For'].toString().isNotEmpty) {
-      notesParts.add('Message: ${json['Message_Sent_For']}');
+      notesParts.add('${json['Message_Sent_For']}');
     }
 
     if (notesParts.isEmpty) {

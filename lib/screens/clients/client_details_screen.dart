@@ -122,8 +122,11 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showContactabilityOptions(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Contact'),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'Contact',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.blue,
       ),
     );

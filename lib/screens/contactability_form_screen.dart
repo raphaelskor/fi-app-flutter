@@ -35,6 +35,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   ContactabilityChannel? _selectedChannel;
   DateTime? _selectedPtpDate;
   bool _showPtpFields = false;
+  bool _hasAttemptedSubmit = false; // Track if user has attempted to submit
 
   @override
   void initState() {
@@ -68,7 +69,18 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         controller.setVisitAgent(userName);
         controller.setVisitAgentTeamLead(userTeamName);
       }
+
+      // Set initial PTP fields visibility
+      setState(() {
+        _showPtpFields = _shouldShowPtpFields(controller);
+      });
     });
+  }
+
+  // Helper method to determine if PTP fields should be shown
+  bool _shouldShowPtpFields(ContactabilityController controller) {
+    return controller.selectedContactResult == ContactResult.ptp ||
+        controller.selectedVisitStatus == VisitStatus.janjiBayar;
   }
 
   @override
@@ -132,6 +144,9 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                   ],
                   _buildContactResultSection(controller),
                   const SizedBox(height: 20),
+                  _buildPtpFieldsSection(controller),
+                  if (_shouldShowPtpFields(controller))
+                    const SizedBox(height: 20),
                   _buildVisitNotesSection(),
                   const SizedBox(height: 24),
                   _buildSubmitButton(controller),
@@ -499,6 +514,15 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               }).toList(),
               onChanged: (status) {
                 controller.setSelectedVisitStatus(status);
+                setState(() {
+                  _showPtpFields = _shouldShowPtpFields(controller);
+                  _hasAttemptedSubmit =
+                      false; // Reset submit attempt when changing selection
+                  if (!_showPtpFields) {
+                    _ptpAmountController.clear();
+                    _selectedPtpDate = null;
+                  }
+                });
               },
               validator: (value) {
                 if (_selectedChannel == ContactabilityChannel.visit &&
@@ -543,7 +567,9 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               onChanged: (result) {
                 controller.setSelectedContactResult(result);
                 setState(() {
-                  _showPtpFields = result == ContactResult.ptp;
+                  _showPtpFields = _shouldShowPtpFields(controller);
+                  _hasAttemptedSubmit =
+                      false; // Reset submit attempt when changing selection
                   if (!_showPtpFields) {
                     _ptpAmountController.clear();
                     _selectedPtpDate = null;
@@ -557,50 +583,74 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 return null;
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Conditional PTP fields
-            if (_showPtpFields) ...[
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _ptpAmountController,
-                decoration: const InputDecoration(
-                  labelText: 'PTP Amount',
-                  border: OutlineInputBorder(),
-                  hintText: 'Enter amount',
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (_showPtpFields && (value == null || value.isEmpty)) {
-                    return 'Please enter PTP amount';
-                  }
-                  return null;
-                },
+  Widget _buildPtpFieldsSection(ContactabilityController controller) {
+    if (!_shouldShowPtpFields(controller)) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Promise to Pay (PTP) Details',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _ptpAmountController,
+              decoration: const InputDecoration(
+                labelText: 'PTP Amount',
+                border: OutlineInputBorder(),
+                hintText: 'Enter amount',
               ),
-              const SizedBox(height: 16),
-              InkWell(
-                onTap: _selectPtpDate,
-                child: InputDecorator(
-                  decoration: InputDecoration(
-                    labelText: 'PTP Date',
-                    border: const OutlineInputBorder(),
-                    suffixIcon: const Icon(Icons.calendar_today),
-                    errorText: _showPtpFields && _selectedPtpDate == null
-                        ? 'Please select PTP date'
-                        : null,
-                  ),
-                  child: Text(
-                    _selectedPtpDate != null
-                        ? DateFormat('dd/MM/yyyy').format(_selectedPtpDate!)
-                        : 'Select PTP date',
-                    style: TextStyle(
-                      color: _selectedPtpDate != null
-                          ? Colors.black87
-                          : Colors.grey[600],
-                    ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (_shouldShowPtpFields(
+                        context.read<ContactabilityController>()) &&
+                    (value == null || value.isEmpty)) {
+                  return 'Please enter PTP amount';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            InkWell(
+              onTap: _selectPtpDate,
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'PTP Date',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: const Icon(Icons.calendar_today),
+                  errorText: _hasAttemptedSubmit &&
+                          _shouldShowPtpFields(
+                              context.read<ContactabilityController>()) &&
+                          _selectedPtpDate == null
+                      ? 'Please select PTP date'
+                      : null,
+                ),
+                child: Text(
+                  _selectedPtpDate != null
+                      ? DateFormat('dd/MM/yyyy').format(_selectedPtpDate!)
+                      : 'Select PTP date',
+                  style: TextStyle(
+                    color: _selectedPtpDate != null
+                        ? Colors.black87
+                        : Colors.grey[600],
                   ),
                 ),
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -626,9 +676,20 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Add up to $maxImages ${maxImages == 1 ? 'image' : 'images'} for this $channelName',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            Row(
+              children: [
+                Text(
+                  'Add up to $maxImages ${maxImages == 1 ? 'image' : 'images'} for this $channelName',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                ),
+                const Text(
+                  ' *',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -845,10 +906,31 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   }
 
   void _submitForm() async {
+    setState(() {
+      _hasAttemptedSubmit = true;
+    });
+
     if (!_formKey.currentState!.validate()) return;
 
-    // Validate PTP fields if PTP is selected
-    if (_showPtpFields) {
+    final controller = context.read<ContactabilityController>();
+
+    // Validate images for message and visit channels
+    if (_selectedChannel == ContactabilityChannel.message ||
+        _selectedChannel == ContactabilityChannel.visit) {
+      if (controller.selectedImages.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Please upload at least 1 image for ${_getChannelDisplayName(_selectedChannel!).toLowerCase()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Validate PTP fields if PTP is selected or Visit Status is Janji Bayar
+    if (_shouldShowPtpFields(controller)) {
       if (_ptpAmountController.text.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -869,12 +951,12 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
       }
     }
 
-    final controller = context.read<ContactabilityController>();
     controller.clearError();
 
     final success = await controller.submitContactability(
-      ptpAmount: _showPtpFields ? _ptpAmountController.text : null,
-      ptpDate: _showPtpFields ? _selectedPtpDate : null,
+      ptpAmount:
+          _shouldShowPtpFields(controller) ? _ptpAmountController.text : null,
+      ptpDate: _shouldShowPtpFields(controller) ? _selectedPtpDate : null,
     );
 
     if (success && mounted) {
@@ -942,6 +1024,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     if (picked != null) {
       setState(() {
         _selectedPtpDate = picked;
+        _hasAttemptedSubmit =
+            false; // Reset submit attempt when user selects a date
       });
     }
   }
