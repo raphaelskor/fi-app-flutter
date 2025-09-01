@@ -46,7 +46,8 @@ class Client {
           json['updated_at'] ?? DateTime.now().toIso8601String()),
       notes: json['notes']?.toString(),
       distance: json['distance']?.toDouble(),
-      rawApiData: null,
+      rawApiData: json['raw_api_data']
+          as Map<String, dynamic>?, // Restore raw API data from cache
     );
   }
 

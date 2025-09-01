@@ -33,11 +33,23 @@ class DailyCacheService {
       final clientsJson = clients.map((client) => client.toJson()).toList();
       final jsonString = jsonEncode(clientsJson);
 
+      // Debug: Log first client's raw data structure
+      if (clients.isNotEmpty) {
+        final firstClient = clients.first;
+        print(
+            '🔍 First client raw data keys: ${firstClient.rawApiData?.keys.toList()}');
+        print('🔍 First client skorUserId: ${firstClient.skorUserId}');
+        print(
+            '🔍 Raw data sample size: ${firstClient.rawApiData?.length ?? 0} fields');
+      }
+
       // Save data and date
       await prefs.setString(_clientsCacheKey, jsonString);
       await prefs.setString(_clientsCacheDateKey, _todayString);
 
       print('✅ Cached ${clients.length} clients for $_todayString');
+      print(
+          '📊 Cache size: ${(jsonString.length / 1024).toStringAsFixed(2)} KB');
       return true;
     } catch (e) {
       print('❌ Error saving clients cache: $e');
@@ -67,6 +79,21 @@ class DailyCacheService {
       final clients = jsonList.map((json) => Client.fromJson(json)).toList();
 
       print('📦 Loaded ${clients.length} cached clients for $_todayString');
+
+      // Log detailed information about loaded data
+      if (clients.isNotEmpty) {
+        final firstClient = clients[0];
+        print('📋 First client data verification:');
+        print('   - ID: ${firstClient.id}');
+        print('   - Name: ${firstClient.name}');
+        print(
+            '   - rawApiData: ${firstClient.rawApiData != null ? "✅ Present (${firstClient.rawApiData!.keys.length} keys)" : "❌ Missing"}');
+        if (firstClient.rawApiData != null) {
+          print(
+              '   - rawApiData keys: ${firstClient.rawApiData!.keys.toList()}');
+        }
+      }
+
       return clients;
     } catch (e) {
       print('❌ Error loading clients cache: $e');
