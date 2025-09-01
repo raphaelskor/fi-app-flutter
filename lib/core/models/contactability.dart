@@ -46,10 +46,9 @@ enum VisitStatus {
 enum ContactResult {
   refuseToPay,
   dispute,
-  notRecognized,
+  notRecognised,
   alreadyPaid,
   noPromise,
-  notRecognised,
   negotiation,
   hangUp,
   leaveAMessage,
@@ -358,14 +357,12 @@ extension ContactResultExtension on ContactResult {
         return 'Refuse to Pay';
       case ContactResult.dispute:
         return 'Dispute';
-      case ContactResult.notRecognized:
-        return 'Not Recognized';
+      case ContactResult.notRecognised:
+        return 'Not Recognised';
       case ContactResult.alreadyPaid:
         return 'Already Paid';
       case ContactResult.noPromise:
         return 'No Promise';
-      case ContactResult.notRecognised:
-        return 'Not Recognised';
       case ContactResult.negotiation:
         return 'Negotiation';
       case ContactResult.hangUp:

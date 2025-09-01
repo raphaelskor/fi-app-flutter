@@ -1,3 +1,5 @@
+import '../utils/timezone_utils.dart';
+
 class ContactabilityHistory {
   final String id;
   final String skorUserId;
@@ -42,19 +44,20 @@ class ContactabilityHistory {
   });
 
   factory ContactabilityHistory.fromSkorcardApi(Map<String, dynamic> json) {
-    DateTime createdTime = DateTime.now();
+    // Default to current time in Jakarta timezone
+    DateTime createdTime = TimezoneUtils.nowInJakarta();
     DateTime? modifiedTime;
     DateTime? visitDate;
 
     try {
       if (json['Created_Time'] != null) {
-        createdTime = DateTime.parse(json['Created_Time']);
+        createdTime = TimezoneUtils.parseApiDateTime(json['Created_Time']);
       }
       if (json['Modified_Time'] != null) {
-        modifiedTime = DateTime.parse(json['Modified_Time']);
+        modifiedTime = TimezoneUtils.parseApiDateTime(json['Modified_Time']);
       }
       if (json['Visit_Date'] != null) {
-        visitDate = DateTime.parse(json['Visit_Date']);
+        visitDate = TimezoneUtils.parseApiDateTime(json['Visit_Date']);
       }
     } catch (e) {
       print('Error parsing dates in ContactabilityHistory: $e');

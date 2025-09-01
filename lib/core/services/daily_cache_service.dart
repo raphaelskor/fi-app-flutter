@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/client.dart';
+import '../utils/timezone_utils.dart';
 
 class DailyCacheService {
   static const String _clientsCacheKey = 'daily_clients_cache';
   static const String _clientsCacheDateKey = 'daily_clients_cache_date';
 
-  /// Get today's date as string in YYYY-MM-DD format
+  /// Get today's date as string in YYYY-MM-DD format using Jakarta timezone
   static String get _todayString {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    return TimezoneUtils.formatDateForApi(TimezoneUtils.todayInJakarta());
   }
 
   /// Check if cached data is still valid for today

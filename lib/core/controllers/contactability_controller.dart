@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../exceptions/app_exception.dart';
 import '../services/location_service.dart';
+import '../utils/timezone_utils.dart';
 import 'package:geolocator/geolocator.dart';
 
 enum ContactabilityLoadingState {
@@ -99,10 +100,13 @@ class ContactabilityController extends ChangeNotifier {
 
     _clientId = clientId;
     _skorUserId = skorUserId;
-    _contactabilityDateTime = DateTime.now(); // Set current date/time
+    // Set current date/time in Jakarta timezone (GMT+7)
+    _contactabilityDateTime = TimezoneUtils.nowInJakarta();
 
     debugPrint(
         '🔄 Initializing ContactabilityController for client: $clientId with skorUserId: $skorUserId');
+    debugPrint(
+        '📅 Contactability DateTime set to: $_contactabilityDateTime (${TimezoneUtils.getTimezoneDisplay()})');
 
     await _getCurrentLocation();
     await loadContactabilityHistory(
@@ -255,11 +259,10 @@ class ContactabilityController extends ChangeNotifier {
             submitData['P2p_Amount'] = ptpAmount;
           }
           if (ptpDate != null) {
-            // Format date as YYYY-MM-DD for API
-            final year = ptpDate.year.toString();
-            final month = ptpDate.month.toString().padLeft(2, '0');
-            final day = ptpDate.day.toString().padLeft(2, '0');
-            submitData['P2p_Date'] = '$year-$month-$day';
+            // Format date as YYYY-MM-DD for API using Jakarta timezone
+            submitData['P2p_Date'] = TimezoneUtils.formatDateForApi(ptpDate);
+            debugPrint(
+                '📅 PTP Date formatted for API: ${TimezoneUtils.formatDateForApi(ptpDate)} (${TimezoneUtils.getTimezoneDisplay()})');
           }
         }
       }

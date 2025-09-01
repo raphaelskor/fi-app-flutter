@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../exceptions/app_exception.dart';
 import '../models/contactability_history.dart';
+import '../utils/timezone_utils.dart';
 
 enum ClientContactabilityHistoryLoadingState {
   initial,
@@ -72,11 +72,11 @@ class ClientContactabilityHistoryItem {
             '';
     }
 
-    // Parse created time
-    DateTime createdTime = DateTime.now();
+    // Parse created time with Jakarta timezone
+    DateTime createdTime = TimezoneUtils.nowInJakarta();
     if (json['Created_Time'] != null) {
       try {
-        createdTime = DateTime.parse(json['Created_Time']);
+        createdTime = TimezoneUtils.parseApiDateTime(json['Created_Time']);
       } catch (e) {
         print('Error parsing Created_Time: $e');
       }
@@ -218,16 +218,16 @@ class ClientContactabilityHistoryController extends ChangeNotifier {
     return 'Unable to load history. Please try again later.';
   }
 
-  // Format helpers
+  // Format helpers - ensure dates are in Jakarta timezone
   String formatDate(DateTime date) {
-    return DateFormat('dd/MM/yyyy').format(date);
+    return TimezoneUtils.formatDate(date);
   }
 
   String formatTime(DateTime date) {
-    return DateFormat('HH:mm').format(date);
+    return TimezoneUtils.formatTime(date);
   }
 
   String formatDateTime(DateTime date) {
-    return DateFormat('dd/MM/yyyy HH:mm').format(date);
+    return TimezoneUtils.formatDateTime(date);
   }
 }

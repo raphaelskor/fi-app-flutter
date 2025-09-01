@@ -9,6 +9,7 @@ import '../core/controllers/contactability_controller.dart';
 import '../core/models/client.dart';
 import '../core/models/contactability.dart';
 import '../core/utils/app_utils.dart';
+import '../core/utils/timezone_utils.dart';
 import '../core/services/auth_service.dart';
 
 class ContactabilityFormScreen extends StatefulWidget {
@@ -226,27 +227,9 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
 
   Widget _buildDateTimeInfo(ContactabilityController controller) {
     final timeFormat = DateFormat('HH:mm');
-    final now = controller.contactabilityDateTime ?? DateTime.now();
-
-    // Indonesian date format
-    String formatIndonesianDate(DateTime date) {
-      const monthNames = [
-        '',
-        'Januari',
-        'Februari',
-        'Maret',
-        'April',
-        'Mei',
-        'Juni',
-        'Juli',
-        'Agustus',
-        'September',
-        'Oktober',
-        'November',
-        'Desember'
-      ];
-      return '${date.day} ${monthNames[date.month]} ${date.year}';
-    }
+    // Use Jakarta timezone for current time display
+    final now =
+        controller.contactabilityDateTime ?? TimezoneUtils.nowInJakarta();
 
     return Card(
       elevation: 2,
@@ -273,7 +256,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        formatIndonesianDate(now),
+                        TimezoneUtils.formatIndonesianDate(now),
                         style: TextStyle(color: Colors.grey[700]),
                       ),
                     ],
@@ -677,7 +660,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 ),
                 child: Text(
                   _selectedPtpDate != null
-                      ? _formatIndonesianDate(_selectedPtpDate!)
+                      ? TimezoneUtils.formatIndonesianDate(_selectedPtpDate!)
                       : 'Select PTP date',
                   style: TextStyle(
                     color: _selectedPtpDate != null
@@ -1041,29 +1024,9 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     }
   }
 
-  String _formatIndonesianDate(DateTime date) {
-    const monthNames = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember'
-    ];
-    return '${date.day} ${monthNames[date.month]} ${date.year}';
-  }
-
   Future<void> _selectPtpDate() async {
-    final now = DateTime.now();
-    final today =
-        DateTime(now.year, now.month, now.day); // Reset time to start of day
+    // Use Jakarta timezone for date selection
+    final today = TimezoneUtils.todayInJakarta();
     final maxDate = today.add(const Duration(days: 5)); // 5 days from today
 
     final picked = await showDatePicker(
