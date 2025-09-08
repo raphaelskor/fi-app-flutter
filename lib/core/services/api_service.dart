@@ -518,7 +518,7 @@ class ApiService {
   Future<bool> submitContactability(Map<String, dynamic> data) async {
     try {
       const String url =
-          'https://n8n.skorcard.app/webhook/95709b0d-0d03-4710-85d5-d72f14359ee4';
+          'https://n8n-sit.skorcard.app/webhook/95709b0d-0d03-4710-85d5-d72f14359ee4';
 
       print('🔄 Submitting contactability to Skorcard API');
       print('🔗 URL: $url');
@@ -602,7 +602,7 @@ class ApiService {
   }) async {
     try {
       const String url =
-          'https://n8n.skorcard.app/webhook/95709b0d-0d03-4710-85d5-d72f14359ee4';
+          'https://n8n-sit.skorcard.app/webhook/95709b0d-0d03-4710-85d5-d72f14359ee4';
 
       print('🔄 Submitting contactability with images to Skorcard API');
       print('🔗 URL: $url');

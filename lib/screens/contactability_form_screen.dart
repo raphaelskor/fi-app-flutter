@@ -142,11 +142,9 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                   const SizedBox(height: 20),
                   _buildPersonContactedSection(controller),
                   const SizedBox(height: 20),
-                  // Action Location hanya tampil untuk channel Visit
-                  if (_selectedChannel == ContactabilityChannel.visit) ...[
-                    _buildActionLocationSection(controller),
-                    const SizedBox(height: 20),
-                  ],
+                  // Action Location tampil untuk semua channel (Visit, Call, Message)
+                  _buildActionLocationSection(controller),
+                  const SizedBox(height: 20),
                   if (_selectedChannel == ContactabilityChannel.visit) ...[
                     _buildImageUploadSection(controller),
                     const SizedBox(height: 20),
@@ -397,10 +395,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
             controller.clearImages();
           }
 
-          // Reset Action Location ketika pindah dari Visit ke channel lain
-          if (channel != ContactabilityChannel.visit) {
-            controller.setSelectedActionLocation(null);
-          }
+          // Reset Action Location ketika berganti channel karena opsi berbeda
+          controller.setSelectedActionLocation(null);
 
           // Reset Contact Result karena opsi berbeda untuk setiap channel
           controller.setSelectedContactResult(null);
@@ -484,14 +480,33 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   }
 
   Widget _buildActionLocationSection(ContactabilityController controller) {
-    // Opsi khusus untuk Visit channel
-    final visitActionLocations = [
-      ActionLocation.alamatKorespondensi,
-      ActionLocation.alamatKantor,
-      ActionLocation.alamatRumah,
-      ActionLocation.alamatKtp,
-      ActionLocation.alamatLain,
-    ];
+    // Opsi berbeda berdasarkan channel
+    List<ActionLocation> availableLocations;
+
+    if (_selectedChannel == ContactabilityChannel.visit) {
+      // Opsi untuk Visit channel
+      availableLocations = [
+        ActionLocation.alamatKorespondensi,
+        ActionLocation.alamatKantor,
+        ActionLocation.alamatRumah,
+        ActionLocation.alamatKtp,
+        ActionLocation.alamatLain,
+      ];
+    } else if (_selectedChannel == ContactabilityChannel.call ||
+        _selectedChannel == ContactabilityChannel.message) {
+      // Opsi untuk Call dan Message channel (sama)
+      availableLocations = [
+        ActionLocation.customerMobile,
+        ActionLocation.emergencyContact1,
+        ActionLocation.emergencyContact2,
+        ActionLocation.office,
+        ActionLocation.skipTracingNumber,
+        ActionLocation.phoneContact,
+      ];
+    } else {
+      // Default (tidak seharusnya terjadi karena sudah dikondisikan)
+      availableLocations = [];
+    }
 
     return Card(
       elevation: 2,
@@ -511,8 +526,11 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 labelText: 'Select Action Location',
                 border: OutlineInputBorder(),
               ),
-              value: controller.selectedActionLocation,
-              items: visitActionLocations.map((location) {
+              value:
+                  availableLocations.contains(controller.selectedActionLocation)
+                      ? controller.selectedActionLocation
+                      : null,
+              items: availableLocations.map((location) {
                 return DropdownMenuItem(
                   value: location,
                   child: Text(location.displayName),
@@ -522,9 +540,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 controller.setSelectedActionLocation(location);
               },
               validator: (value) {
-                // Hanya required untuk channel Visit
-                if (_selectedChannel == ContactabilityChannel.visit &&
-                    value == null) {
+                // Required untuk semua channel
+                if (value == null) {
                   return 'Please select action location';
                 }
                 return null;
@@ -540,8 +557,21 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     // Opsi berbeda berdasarkan channel
     List<ContactResult> availableResults;
 
+    // Opsi yang selalu ada untuk semua channel
+    final commonResults = [
+      ContactResult.ptp,
+      ContactResult.negotiation,
+      ContactResult.hotProspect,
+      ContactResult.alreadyPaid,
+      ContactResult.refuseToPay,
+      ContactResult.dispute,
+      ContactResult.notRecognized,
+      ContactResult.partialPayment,
+      ContactResult.failedToPay,
+    ];
+
     if (_selectedChannel == ContactabilityChannel.visit) {
-      // 18 opsi untuk Visit
+      // 18 opsi khusus untuk Visit + opsi common
       availableResults = [
         ContactResult.alamatDitemukanRumahKosong,
         ContactResult.dilarangMasukPerumahan,
@@ -561,9 +591,13 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         ContactResult.kondisiMedis,
         ContactResult.sengketaHukum,
         ContactResult.kunjunganUlang,
+        ...commonResults,
       ];
+    } else if (_selectedChannel == ContactabilityChannel.call) {
+      // Hanya opsi common untuk Call
+      availableResults = commonResults;
     } else {
-      // 7 opsi untuk Message (WA/SP)
+      // 7 opsi untuk Message (WA/SP) + opsi common
       availableResults = [
         ContactResult.waOneTick,
         ContactResult.waTwoTick,
@@ -572,6 +606,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         ContactResult.sp1,
         ContactResult.sp2,
         ContactResult.sp3,
+        ...commonResults,
       ];
     }
 
@@ -1030,9 +1065,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
       return;
     }
 
-    // Validate Action Location hanya untuk channel Visit
-    if (_selectedChannel == ContactabilityChannel.visit &&
-        controller.selectedActionLocation == null) {
+    // Validate Action Location untuk semua channel
+    if (controller.selectedActionLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select action location'),

@@ -605,9 +605,9 @@ extension ActionLocationExtension on ActionLocation {
       case ActionLocation.customerMobile:
         return 'Customer Mobile';
       case ActionLocation.emergencyContact1:
-        return 'Emergency Contact 1';
+        return 'Econ 1';
       case ActionLocation.emergencyContact2:
-        return 'Emergency Contact 2';
+        return 'Econ 2';
       case ActionLocation.office:
         return 'Office';
       case ActionLocation.skipTracingNumber:
