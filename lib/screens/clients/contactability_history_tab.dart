@@ -522,11 +522,35 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
                 '${TimezoneUtils.formatIndonesianDate(item.createdTime)} • ${TimezoneUtils.formatTime(item.createdTime)}',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
+
+              // Show notes if available
               if (item.notes.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                Text(
-                  item.notes,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[800]),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.note,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          item.notes,
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.grey[800]),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
 

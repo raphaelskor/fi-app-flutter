@@ -51,26 +51,8 @@ class ClientContactabilityHistoryItem {
       clientName = json['User_ID']['name'];
     }
 
-    // Extract notes based on channel type
-    String notes = '';
-    final channel = json['Channel']?.toString() ?? '';
-    switch (channel.toLowerCase()) {
-      case 'call':
-        notes = json['Call_Notes']?.toString() ?? '';
-        break;
-      case 'field visit':
-      case 'visit':
-        notes = json['Visit_Notes']?.toString() ?? '';
-        break;
-      case 'message':
-        notes = json['Agent_WA_Notes']?.toString() ?? '';
-        break;
-      default:
-        notes = json['Call_Notes']?.toString() ??
-            json['Visit_Notes']?.toString() ??
-            json['Agent_WA_Notes']?.toString() ??
-            '';
-    }
+    // Extract notes - semua channel menggunakan Visit_Notes
+    String notes = json['Visit_Notes']?.toString() ?? '';
 
     // Parse created time with Jakarta timezone
     DateTime createdTime = TimezoneUtils.nowInJakarta();
