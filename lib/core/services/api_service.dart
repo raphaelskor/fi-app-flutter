@@ -716,7 +716,7 @@ class ApiService {
   }) async {
     try {
       const String baseUrl =
-          'https://n8n.skorcard.app/webhook/d540950f-85d2-4e2b-a054-7e5dfcef0379';
+          'https://n8n-sit.skorcard.app/webhook/d540950f-85d2-4e2b-a054-7e5dfcef0379';
 
       // Prepare request body
       final Map<String, dynamic> requestBody = {
@@ -824,7 +824,7 @@ class ApiService {
 
     try {
       const String baseUrl =
-          'https://n8n.skorcard.app/webhook/e3f3398d-ff5a-4ce6-9cee-73ab201119fb';
+          'https://n8n-sit.skorcard.app/webhook/e3f3398d-ff5a-4ce6-9cee-73ab201119fb';
 
       // Prepare request body
       final Map<String, dynamic> requestBody = {
@@ -856,11 +856,13 @@ class ApiService {
               '⚠️ Empty response body from dashboard API - no data available');
           final defaultData = {
             'visit': 0,
+            'call': 0,
+            'message': 0,
             'rpc': 0,
             'tpc': 0,
-            'ptp': 0,
-            'kp': 0,
-            'bp': 0,
+            'opc': 0,
+            'ptp_all_time': 0,
+            'ptp_this_month': 0,
           };
           // Cache the default data with shorter duration (1 minute)
           _cache.set(cacheKey, defaultData,
@@ -877,14 +879,17 @@ class ApiService {
             print('📊 Response data: $responseData');
 
             // Extract performance data from direct response format
-            // Expected format: [{"Visit_Count": 3, "RPC_Count": 3, ...}]
+            // Expected format: [{"Visit_Count": 22, "Call_Count": 2, "Message_Count": 44, "RPC_Count": 6, "TPC_Count": 3, "OPC_Count": 12, "PTP_Count": 3, "PTP_Count_This_Month": 3}]
             Map<String, dynamic> performanceData = {
               'visit': _parseIntValue(responseData['Visit_Count']) ?? 0,
+              'call': _parseIntValue(responseData['Call_Count']) ?? 0,
+              'message': _parseIntValue(responseData['Message_Count']) ?? 0,
               'rpc': _parseIntValue(responseData['RPC_Count']) ?? 0,
               'tpc': _parseIntValue(responseData['TPC_Count']) ?? 0,
-              'ptp': _parseIntValue(responseData['PTP_Count']) ?? 0,
-              'kp': _parseIntValue(responseData['KP_Count']) ?? 0,
-              'bp': _parseIntValue(responseData['BP_Count']) ?? 0,
+              'opc': _parseIntValue(responseData['OPC_Count']) ?? 0,
+              'ptp_all_time': _parseIntValue(responseData['PTP_Count']) ?? 0,
+              'ptp_this_month':
+                  _parseIntValue(responseData['PTP_Count_This_Month']) ?? 0,
             };
 
             print('📈 Parsed performance data: $performanceData');
@@ -898,11 +903,13 @@ class ApiService {
             print('⚠️ Empty response array from dashboard API');
             final defaultData = {
               'visit': 0,
+              'call': 0,
+              'message': 0,
               'rpc': 0,
               'tpc': 0,
-              'ptp': 0,
-              'kp': 0,
-              'bp': 0,
+              'opc': 0,
+              'ptp_all_time': 0,
+              'ptp_this_month': 0,
             };
             // Cache empty response with shorter duration
             _cache.set(cacheKey, defaultData,
@@ -917,11 +924,13 @@ class ApiService {
           print('⚠️ Invalid JSON response - using default values');
           final defaultData = {
             'visit': 0,
+            'call': 0,
+            'message': 0,
             'rpc': 0,
             'tpc': 0,
-            'ptp': 0,
-            'kp': 0,
-            'bp': 0,
+            'opc': 0,
+            'ptp_all_time': 0,
+            'ptp_this_month': 0,
           };
           // Cache error response with very short duration (30 seconds)
           _cache.set(cacheKey, defaultData,

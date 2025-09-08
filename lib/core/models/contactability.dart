@@ -44,18 +44,40 @@ enum VisitStatus {
 }
 
 enum ContactResult {
+  alamatDitemukanRumahKosong,
+  dilarangMasukPerumahan,
+  dilarangMasukKantor,
+  menghindar,
+  titipSurat,
+  alamatTidakDitemukan,
+  alamatSalah,
+  konsumenTidakDikenal,
+  pindahTidakDitemukan,
+  pindahAlamatBaru,
+  meninggalDunia,
+  mengundurkanDiri,
+  berhentiBekerja,
+  sedangRenovasi,
+  bencanaAlam,
+  kondisiMedis,
+  sengketaHukum,
+  kunjunganUlang,
+  ptp,
+  negotiation,
+  hotProspect,
+  alreadyPaid,
   refuseToPay,
   dispute,
-  notRecognised,
-  alreadyPaid,
-  noPromise,
-  negotiation,
-  hangUp,
-  leaveAMessage,
-  noRespond,
-  ptp,
-  keepPromise,
-  brokenPromise,
+  notRecognized,
+  partialPayment,
+  failedToPay,
+  waOneTick,
+  waTwoTick,
+  waBlueTick,
+  waNotRegistered,
+  sp1,
+  sp2,
+  sp3,
 }
 
 enum VisitLocation {
@@ -67,6 +89,39 @@ enum VisitLocation {
 enum VisitBySkorTeam {
   yes,
   no,
+}
+
+enum PersonContacted {
+  debtor,
+  spouse,
+  son,
+  daughter,
+  father,
+  mother,
+  brother,
+  sister,
+  houseAssistant,
+  houseSecurity,
+  areaSecurity,
+  officeSecurity,
+  receptionist,
+  guest,
+  neighbor,
+  emergencyContact,
+}
+
+enum ActionLocation {
+  alamatKorespondensi,
+  alamatKantor,
+  alamatRumah,
+  alamatKtp,
+  alamatLain,
+  customerMobile,
+  emergencyContact1,
+  emergencyContact2,
+  office,
+  skipTracingNumber,
+  phoneContact,
 }
 
 class Contactability {
@@ -353,30 +408,74 @@ extension VisitStatusExtension on VisitStatus {
 extension ContactResultExtension on ContactResult {
   String get displayName {
     switch (this) {
+      case ContactResult.alamatDitemukanRumahKosong:
+        return 'Alamat Ditemukan, Rumah Kosong';
+      case ContactResult.dilarangMasukPerumahan:
+        return 'Dilarang Masuk Perumahan';
+      case ContactResult.dilarangMasukKantor:
+        return 'Dilarang Masuk Kantor';
+      case ContactResult.menghindar:
+        return 'Menghindar';
+      case ContactResult.titipSurat:
+        return 'Titip Surat';
+      case ContactResult.alamatTidakDitemukan:
+        return 'Alamat Tidak Ditemukan';
+      case ContactResult.alamatSalah:
+        return 'Alamat Salah';
+      case ContactResult.konsumenTidakDikenal:
+        return 'Konsumen Tidak Dikenal';
+      case ContactResult.pindahTidakDitemukan:
+        return 'Pindah, Tidak Ditemukan';
+      case ContactResult.pindahAlamatBaru:
+        return 'Pindah, Alamat Baru';
+      case ContactResult.meninggalDunia:
+        return 'Meninggal Dunia';
+      case ContactResult.mengundurkanDiri:
+        return 'Mengundurkan Diri';
+      case ContactResult.berhentiBekerja:
+        return 'Berhenti Bekerja';
+      case ContactResult.sedangRenovasi:
+        return 'Sedang Renovasi';
+      case ContactResult.bencanaAlam:
+        return 'Bencana Alam';
+      case ContactResult.kondisiMedis:
+        return 'Kondisi Medis';
+      case ContactResult.sengketaHukum:
+        return 'Sengketa Hukum';
+      case ContactResult.kunjunganUlang:
+        return 'Kunjungan Ulang';
+      case ContactResult.ptp:
+        return 'PTP';
+      case ContactResult.negotiation:
+        return 'Negotiation';
+      case ContactResult.hotProspect:
+        return 'Hot Prospect';
+      case ContactResult.alreadyPaid:
+        return 'Already Paid';
       case ContactResult.refuseToPay:
         return 'Refuse to Pay';
       case ContactResult.dispute:
         return 'Dispute';
-      case ContactResult.notRecognised:
-        return 'Not Recognised';
-      case ContactResult.alreadyPaid:
-        return 'Already Paid';
-      case ContactResult.noPromise:
-        return 'No Promise';
-      case ContactResult.negotiation:
-        return 'Negotiation';
-      case ContactResult.hangUp:
-        return 'Hang Up';
-      case ContactResult.leaveAMessage:
-        return 'Leave a Message';
-      case ContactResult.noRespond:
-        return 'No respond';
-      case ContactResult.ptp:
-        return 'Promise to Pay (PTP)';
-      case ContactResult.keepPromise:
-        return 'Keep Promise (KP)';
-      case ContactResult.brokenPromise:
-        return 'Broken Promise (BP)';
+      case ContactResult.notRecognized:
+        return 'Not Recognized';
+      case ContactResult.partialPayment:
+        return 'Partial Payment';
+      case ContactResult.failedToPay:
+        return 'Failed to Pay';
+      case ContactResult.waOneTick:
+        return 'WA One Tick';
+      case ContactResult.waTwoTick:
+        return 'WA Two Tick';
+      case ContactResult.waBlueTick:
+        return 'WA Blue Tick';
+      case ContactResult.waNotRegistered:
+        return 'WA Not Registered';
+      case ContactResult.sp1:
+        return 'SP 1';
+      case ContactResult.sp2:
+        return 'SP 2';
+      case ContactResult.sp3:
+        return 'SP 3';
     }
   }
 
@@ -388,7 +487,7 @@ extension ContactResultExtension on ContactResult {
         return result;
       }
     }
-    return ContactResult.noRespond;
+    return ContactResult.kunjunganUlang;
   }
 }
 
@@ -437,5 +536,95 @@ extension VisitBySkorTeamExtension on VisitBySkorTeam {
       default:
         return VisitBySkorTeam.yes;
     }
+  }
+}
+
+extension PersonContactedExtension on PersonContacted {
+  String get displayName {
+    switch (this) {
+      case PersonContacted.debtor:
+        return 'Debtor';
+      case PersonContacted.spouse:
+        return 'Spouse';
+      case PersonContacted.son:
+        return 'Son';
+      case PersonContacted.daughter:
+        return 'Daughter';
+      case PersonContacted.father:
+        return 'Father';
+      case PersonContacted.mother:
+        return 'Mother';
+      case PersonContacted.brother:
+        return 'Brother';
+      case PersonContacted.sister:
+        return 'Sister';
+      case PersonContacted.houseAssistant:
+        return 'House Assistant';
+      case PersonContacted.houseSecurity:
+        return 'House Security';
+      case PersonContacted.areaSecurity:
+        return 'Area Security';
+      case PersonContacted.officeSecurity:
+        return 'Office Security';
+      case PersonContacted.receptionist:
+        return 'Receptionist';
+      case PersonContacted.guest:
+        return 'Guest';
+      case PersonContacted.neighbor:
+        return 'Neighbor';
+      case PersonContacted.emergencyContact:
+        return 'Emergency Contact';
+    }
+  }
+
+  String get apiValue => displayName;
+
+  static PersonContacted fromString(String value) {
+    for (final person in PersonContacted.values) {
+      if (person.displayName == value) {
+        return person;
+      }
+    }
+    return PersonContacted.debtor;
+  }
+}
+
+extension ActionLocationExtension on ActionLocation {
+  String get displayName {
+    switch (this) {
+      case ActionLocation.alamatKorespondensi:
+        return 'Alamat Korespondensi';
+      case ActionLocation.alamatKantor:
+        return 'Alamat Kantor';
+      case ActionLocation.alamatRumah:
+        return 'Alamat Rumah';
+      case ActionLocation.alamatKtp:
+        return 'Alamat KTP';
+      case ActionLocation.alamatLain:
+        return 'Alamat Lain';
+      case ActionLocation.customerMobile:
+        return 'Customer Mobile';
+      case ActionLocation.emergencyContact1:
+        return 'Emergency Contact 1';
+      case ActionLocation.emergencyContact2:
+        return 'Emergency Contact 2';
+      case ActionLocation.office:
+        return 'Office';
+      case ActionLocation.skipTracingNumber:
+        return 'Skip Tracing Number';
+      case ActionLocation.phoneContact:
+        return 'Phone Contact';
+    }
+  }
+
+  String get apiValue => displayName;
+
+  static ActionLocation fromString(String value) {
+    for (final location in ActionLocation.values) {
+      if (location.displayName == value) {
+        return location;
+      }
+    }
+    return ActionLocation.alamatKorespondensi;
   }
 }

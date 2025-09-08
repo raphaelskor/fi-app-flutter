@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/controllers/client_contactability_history_controller.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/utils/timezone_utils.dart';
 import '../../widgets/common_widgets.dart';
 import '../contactability/contactability_details_screen.dart';
 
@@ -15,6 +16,13 @@ class ContactabilityHistoryTab extends StatefulWidget {
 class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
   ClientContactabilityHistoryController? _controller;
   bool _isInitialized = false;
+
+  // Search and filter state
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  DateTime? _startDate;
+  DateTime? _endDate;
+  bool _showFilters = false;
 
   @override
   void initState() {
@@ -47,6 +55,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     // _controller.dispose(); // No dispose method in this controller
     super.dispose();
   }
@@ -80,19 +89,63 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
         );
 
       case ClientContactabilityHistoryLoadingState.loaded:
-        final history = controller.historyItems;
-        if (history.isEmpty) {
+        final history = _filterHistoryItems(controller.historyItems);
+        if (history.isEmpty && controller.historyItems.isNotEmpty) {
+          return _buildNoResultsState();
+        } else if (history.isEmpty) {
           return _buildEmptyState();
         }
         return _buildHistoryList(history, controller);
 
       case ClientContactabilityHistoryLoadingState.refreshing:
-        final history = controller.historyItems;
-        if (history.isEmpty) {
+        final history = _filterHistoryItems(controller.historyItems);
+        if (history.isEmpty && controller.historyItems.isNotEmpty) {
+          return _buildNoResultsState();
+        } else if (history.isEmpty) {
           return const LoadingWidget(message: 'Loading...');
         }
         return _buildHistoryList(history, controller);
     }
+  }
+
+  // Filter history items based on search query and date range
+  List<ClientContactabilityHistoryItem> _filterHistoryItems(
+      List<ClientContactabilityHistoryItem> items) {
+    return items.where((item) {
+      // Search filter
+      bool matchesSearch = _searchQuery.isEmpty ||
+          item.clientName.toLowerCase().contains(_searchQuery.toLowerCase());
+
+      // Date filter
+      bool matchesDateRange = true;
+      if (_startDate != null || _endDate != null) {
+        final itemDate = DateTime(
+          item.createdTime.year,
+          item.createdTime.month,
+          item.createdTime.day,
+        );
+
+        if (_startDate != null) {
+          final startDate = DateTime(
+            _startDate!.year,
+            _startDate!.month,
+            _startDate!.day,
+          );
+          matchesDateRange = matchesDateRange && !itemDate.isBefore(startDate);
+        }
+
+        if (_endDate != null) {
+          final endDate = DateTime(
+            _endDate!.year,
+            _endDate!.month,
+            _endDate!.day,
+          );
+          matchesDateRange = matchesDateRange && !itemDate.isAfter(endDate);
+        }
+      }
+
+      return matchesSearch && matchesDateRange;
+    }).toList();
   }
 
   Widget _buildEmptyState() {
@@ -145,6 +198,65 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
     );
   }
 
+  Widget _buildNoResultsState() {
+    return RefreshIndicator(
+      onRefresh: () => _controller?.refresh() ?? Future.value(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.search_off,
+                  size: 64,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No results found',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Try adjusting your search or date filters',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _searchQuery = '';
+                      _searchController.clear();
+                      _startDate = null;
+                      _endDate = null;
+                    });
+                  },
+                  icon: const Icon(Icons.clear_all),
+                  label: const Text('Clear Filters'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[50],
+                    foregroundColor: Colors.blue[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHistoryList(List<ClientContactabilityHistoryItem> history,
       ClientContactabilityHistoryController controller) {
     return RefreshIndicator(
@@ -165,6 +277,186 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             SizedBox(height: 20),
+
+            // Search bar
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by client name...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _searchQuery = '';
+                            _searchController.clear();
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+
+            const SizedBox(height: 12),
+
+            // Filter button and active filters display
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showFilters = !_showFilters;
+                    });
+                  },
+                  icon: Icon(
+                    _showFilters ? Icons.filter_list_off : Icons.filter_list,
+                    size: 20,
+                  ),
+                  label: Text('Date Filter'),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: (_startDate != null || _endDate != null)
+                        ? Colors.blue[50]
+                        : null,
+                    foregroundColor: (_startDate != null || _endDate != null)
+                        ? Colors.blue[700]
+                        : null,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.history,
+                        size: 16,
+                        color: Colors.blue[700],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${history.length} contactability',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Date filter section
+            if (_showFilters) ...[
+              const SizedBox(height: 12),
+              Card(
+                elevation: 1,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Filter by Date Range',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _selectStartDate(),
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Start Date',
+                                  border: OutlineInputBorder(),
+                                  suffixIcon: Icon(Icons.calendar_today),
+                                ),
+                                child: Text(
+                                  _startDate != null
+                                      ? TimezoneUtils.formatIndonesianDate(
+                                          _startDate!)
+                                      : 'Select start date',
+                                  style: TextStyle(
+                                    color: _startDate != null
+                                        ? Colors.black87
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _selectEndDate(),
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'End Date',
+                                  border: OutlineInputBorder(),
+                                  suffixIcon: Icon(Icons.calendar_today),
+                                ),
+                                child: Text(
+                                  _endDate != null
+                                      ? TimezoneUtils.formatIndonesianDate(
+                                          _endDate!)
+                                      : 'Select end date',
+                                  style: TextStyle(
+                                    color: _endDate != null
+                                        ? Colors.black87
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          if (_startDate != null || _endDate != null)
+                            TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _startDate = null;
+                                  _endDate = null;
+                                });
+                              },
+                              icon: const Icon(Icons.clear),
+                              label: const Text('Clear Dates'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 20),
             ListView.builder(
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
@@ -227,7 +519,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
               ),
               const SizedBox(height: 8),
               Text(
-                _controller?.formatDateTime(item.createdTime) ?? 'Unknown date',
+                '${TimezoneUtils.formatIndonesianDate(item.createdTime)} • ${TimezoneUtils.formatTime(item.createdTime)}',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
               if (item.notes.isNotEmpty) ...[
@@ -375,6 +667,42 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
         ),
       ),
     );
+  }
+
+  Future<void> _selectStartDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate ?? TimezoneUtils.todayInJakarta(),
+      firstDate: DateTime(2020),
+      lastDate: TimezoneUtils.todayInJakarta(),
+    );
+    if (picked != null) {
+      setState(() {
+        _startDate = picked;
+        // Ensure start date is not after end date
+        if (_endDate != null && _startDate!.isAfter(_endDate!)) {
+          _endDate = _startDate;
+        }
+      });
+    }
+  }
+
+  Future<void> _selectEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? TimezoneUtils.todayInJakarta(),
+      firstDate: _startDate ?? DateTime(2020),
+      lastDate: TimezoneUtils.todayInJakarta(),
+    );
+    if (picked != null) {
+      setState(() {
+        _endDate = picked;
+        // Ensure end date is not before start date
+        if (_startDate != null && _endDate!.isBefore(_startDate!)) {
+          _startDate = _endDate;
+        }
+      });
+    }
   }
 
   IconData _getChannelIconFromString(String channel) {

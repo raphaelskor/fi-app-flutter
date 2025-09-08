@@ -33,6 +33,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   final _visitAgentController = TextEditingController();
   final _visitAgentTeamLeadController = TextEditingController();
   final _ptpAmountController = TextEditingController();
+  final _newPhoneNumberController = TextEditingController();
+  final _newAddressController = TextEditingController();
 
   ContactabilityChannel? _selectedChannel;
   DateTime? _selectedPtpDate;
@@ -88,8 +90,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
 
   // Helper method to determine if PTP fields should be shown
   bool _shouldShowPtpFields(ContactabilityController controller) {
-    return controller.selectedContactResult == ContactResult.ptp ||
-        controller.selectedVisitStatus == VisitStatus.janjiBayar;
+    return controller.selectedContactResult == ContactResult.ptp;
   }
 
   @override
@@ -98,6 +99,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     _visitAgentController.dispose();
     _visitAgentTeamLeadController.dispose();
     _ptpAmountController.dispose();
+    _newPhoneNumberController.dispose();
+    _newAddressController.dispose();
     super.dispose();
   }
 
@@ -137,13 +140,14 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                   const SizedBox(height: 20),
                   _buildChannelSection(controller),
                   const SizedBox(height: 20),
+                  _buildPersonContactedSection(controller),
+                  const SizedBox(height: 20),
+                  // Action Location hanya tampil untuk channel Visit
                   if (_selectedChannel == ContactabilityChannel.visit) ...[
-                    _buildVisitLocationSection(controller),
+                    _buildActionLocationSection(controller),
                     const SizedBox(height: 20),
-                    _buildVisitActionSection(controller),
-                    const SizedBox(height: 20),
-                    _buildVisitStatusSection(controller),
-                    const SizedBox(height: 20),
+                  ],
+                  if (_selectedChannel == ContactabilityChannel.visit) ...[
                     _buildImageUploadSection(controller),
                     const SizedBox(height: 20),
                   ],
@@ -157,6 +161,10 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                   if (_shouldShowPtpFields(controller))
                     const SizedBox(height: 20),
                   _buildVisitNotesSection(),
+                  const SizedBox(height: 20),
+                  _buildNewPhoneNumberSection(),
+                  const SizedBox(height: 20),
+                  _buildNewAddressSection(),
                   const SizedBox(height: 24),
                   _buildSubmitButton(controller),
                   if (controller.errorMessage != null) ...[
@@ -382,11 +390,25 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         controller.setSelectedChannel(channel);
         setState(() {
           _selectedChannel = channel;
+
           // Clear images when switching channels if exceeding new limits
           if (channel == ContactabilityChannel.call) {
             // If switching to call (no images allowed), clear all
             controller.clearImages();
           }
+
+          // Reset Action Location ketika pindah dari Visit ke channel lain
+          if (channel != ContactabilityChannel.visit) {
+            controller.setSelectedActionLocation(null);
+          }
+
+          // Reset Contact Result karena opsi berbeda untuk setiap channel
+          controller.setSelectedContactResult(null);
+
+          // Reset PTP fields jika ada
+          _showPtpFields = false;
+          _ptpAmountController.clear();
+          _selectedPtpDate = null;
         });
       },
       child: Container(
@@ -419,7 +441,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     );
   }
 
-  Widget _buildVisitLocationSection(ContactabilityController controller) {
+  Widget _buildPersonContactedSection(ContactabilityController controller) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -429,124 +451,81 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Visit Location',
+              'Person Contacted',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<VisitLocation>(
+            DropdownButtonFormField<PersonContacted>(
               decoration: const InputDecoration(
-                labelText: 'Select Visit Location',
+                labelText: 'Select Person Contacted',
                 border: OutlineInputBorder(),
               ),
-              value: controller.selectedVisitLocation,
-              items: VisitLocation.values.map((location) {
+              value: controller.selectedPersonContacted,
+              items: PersonContacted.values.map((person) {
+                return DropdownMenuItem(
+                  value: person,
+                  child: Text(person.displayName),
+                );
+              }).toList(),
+              onChanged: (person) {
+                controller.setSelectedPersonContacted(person);
+              },
+              validator: (value) {
+                if (value == null) {
+                  return 'Please select person contacted';
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionLocationSection(ContactabilityController controller) {
+    // Opsi khusus untuk Visit channel
+    final visitActionLocations = [
+      ActionLocation.alamatKorespondensi,
+      ActionLocation.alamatKantor,
+      ActionLocation.alamatRumah,
+      ActionLocation.alamatKtp,
+      ActionLocation.alamatLain,
+    ];
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Action Location',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<ActionLocation>(
+              decoration: const InputDecoration(
+                labelText: 'Select Action Location',
+                border: OutlineInputBorder(),
+              ),
+              value: controller.selectedActionLocation,
+              items: visitActionLocations.map((location) {
                 return DropdownMenuItem(
                   value: location,
                   child: Text(location.displayName),
                 );
               }).toList(),
               onChanged: (location) {
-                controller.setSelectedVisitLocation(location);
+                controller.setSelectedActionLocation(location);
               },
               validator: (value) {
+                // Hanya required untuk channel Visit
                 if (_selectedChannel == ContactabilityChannel.visit &&
                     value == null) {
-                  return 'Please select visit location';
-                }
-                return null;
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVisitActionSection(ContactabilityController controller) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Visit Action',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<VisitAction>(
-              decoration: const InputDecoration(
-                labelText: 'Select Visit Action',
-                border: OutlineInputBorder(),
-              ),
-              value: controller.selectedVisitAction,
-              items: VisitAction.values.map((action) {
-                return DropdownMenuItem(
-                  value: action,
-                  child: Text(action.displayName),
-                );
-              }).toList(),
-              onChanged: (action) {
-                controller.setSelectedVisitAction(action);
-              },
-              validator: (value) {
-                if (_selectedChannel == ContactabilityChannel.visit &&
-                    value == null) {
-                  return 'Please select visit action';
-                }
-                return null;
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVisitStatusSection(ContactabilityController controller) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Visit Status',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<VisitStatus>(
-              decoration: const InputDecoration(
-                labelText: 'Select Visit Status',
-                border: OutlineInputBorder(),
-              ),
-              value: controller.selectedVisitStatus,
-              items: VisitStatus.values.map((status) {
-                return DropdownMenuItem(
-                  value: status,
-                  child: Text(status.displayName),
-                );
-              }).toList(),
-              onChanged: (status) {
-                controller.setSelectedVisitStatus(status);
-                setState(() {
-                  _showPtpFields = _shouldShowPtpFields(controller);
-                  _hasAttemptedSubmit =
-                      false; // Reset submit attempt when changing selection
-                  if (!_showPtpFields) {
-                    _ptpAmountController.clear();
-                    _selectedPtpDate = null;
-                  }
-                });
-              },
-              validator: (value) {
-                if (_selectedChannel == ContactabilityChannel.visit &&
-                    value == null) {
-                  return 'Please select visit status';
+                  return 'Please select action location';
                 }
                 return null;
               },
@@ -558,6 +537,44 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   }
 
   Widget _buildContactResultSection(ContactabilityController controller) {
+    // Opsi berbeda berdasarkan channel
+    List<ContactResult> availableResults;
+
+    if (_selectedChannel == ContactabilityChannel.visit) {
+      // 18 opsi untuk Visit
+      availableResults = [
+        ContactResult.alamatDitemukanRumahKosong,
+        ContactResult.dilarangMasukPerumahan,
+        ContactResult.dilarangMasukKantor,
+        ContactResult.menghindar,
+        ContactResult.titipSurat,
+        ContactResult.alamatTidakDitemukan,
+        ContactResult.alamatSalah,
+        ContactResult.konsumenTidakDikenal,
+        ContactResult.pindahTidakDitemukan,
+        ContactResult.pindahAlamatBaru,
+        ContactResult.meninggalDunia,
+        ContactResult.mengundurkanDiri,
+        ContactResult.berhentiBekerja,
+        ContactResult.sedangRenovasi,
+        ContactResult.bencanaAlam,
+        ContactResult.kondisiMedis,
+        ContactResult.sengketaHukum,
+        ContactResult.kunjunganUlang,
+      ];
+    } else {
+      // 7 opsi untuk Message (WA/SP)
+      availableResults = [
+        ContactResult.waOneTick,
+        ContactResult.waTwoTick,
+        ContactResult.waBlueTick,
+        ContactResult.waNotRegistered,
+        ContactResult.sp1,
+        ContactResult.sp2,
+        ContactResult.sp3,
+      ];
+    }
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -576,8 +593,10 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                 labelText: 'Select Contact Result',
                 border: OutlineInputBorder(),
               ),
-              value: controller.selectedContactResult,
-              items: ContactResult.values.map((result) {
+              value: availableResults.contains(controller.selectedContactResult)
+                  ? controller.selectedContactResult
+                  : null,
+              items: availableResults.map((result) {
                 return DropdownMenuItem(
                   value: result,
                   child: Text(result.displayName),
@@ -877,6 +896,73 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     );
   }
 
+  Widget _buildNewPhoneNumberSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'New Phone Number',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _newPhoneNumberController,
+              decoration: const InputDecoration(
+                labelText: 'Enter new phone number (optional)',
+                hintText: 'New phone number found during contact...',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.phone,
+              onChanged: (value) {
+                context
+                    .read<ContactabilityController>()
+                    .setNewPhoneNumber(value);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewAddressSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'New Address',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _newAddressController,
+              decoration: const InputDecoration(
+                labelText: 'Enter new address (optional)',
+                hintText: 'New address found during contact...',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+              maxLines: 3,
+              onChanged: (value) {
+                context.read<ContactabilityController>().setNewAddress(value);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSubmitButton(ContactabilityController controller) {
     return SizedBox(
       width: double.infinity,
@@ -932,6 +1018,29 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final controller = context.read<ContactabilityController>();
+
+    // Validate required fields
+    if (controller.selectedPersonContacted == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select person contacted'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validate Action Location hanya untuk channel Visit
+    if (_selectedChannel == ContactabilityChannel.visit &&
+        controller.selectedActionLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select action location'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     // Validate images for message and visit channels
     if (_selectedChannel == ContactabilityChannel.message ||

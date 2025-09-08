@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../core/controllers/dashboard_controller.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -98,58 +99,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Communication Channels Pie Chart
                   const Text(
-                    'Today\'s Performance',
+                    'Communication Channels',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.5,
+                  _buildCommunicationPieChart(controller),
+
+                  const SizedBox(height: 30),
+
+                  // Contact Results Bar Chart
+                  const Text(
+                    'Contact Results',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildContactResultsBarChart(controller),
+
+                  const SizedBox(height: 30),
+
+                  // PTP Performance
+                  const Text(
+                    'PTP Performance',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
-                      _buildMetricCard(
-                          'Visit', controller.performanceData['visit']!),
-                      _buildMetricCard(
-                          'RPC', controller.performanceData['rpc']!),
-                      _buildMetricCard(
-                          'TPC', controller.performanceData['tpc']!),
-                      _buildMetricCard(
-                          'PTP', controller.performanceData['ptp']!),
-                      _buildMetricCard('KP', controller.performanceData['kp']!),
-                      _buildMetricCard('BP', controller.performanceData['bp']!),
+                      Expanded(
+                        child: _buildMetricCard('PTP All Time',
+                            controller.performanceData['ptp_all_time'] ?? 0),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildMetricCard('PTP This Month',
+                            controller.performanceData['ptp_this_month'] ?? 0),
+                      ),
                     ],
                   ),
+
                   const SizedBox(height: 30),
+
+                  // Performance Ratios
                   const Text(
                     'Performance Ratios',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   _buildRatioRow(
-                    'RPC/Visit Ratio',
-                    controller.calculateRatio(
-                        controller.performanceData['rpc']!,
-                        controller.performanceData['visit']!),
-                  ),
-                  _buildRatioRow(
                     'PTP/Visit Ratio',
                     controller.calculateRatio(
-                        controller.performanceData['ptp']!,
-                        controller.performanceData['visit']!),
+                        controller.performanceData['ptp_all_time'] ?? 0,
+                        controller.performanceData['visit'] ?? 0),
                   ),
                   _buildRatioRow(
-                    'KP/PTP Ratio',
-                    controller.calculateRatio(controller.performanceData['kp']!,
-                        controller.performanceData['ptp']!),
+                    'RPC/Visit Ratio',
+                    controller.calculateRatio(
+                        controller.performanceData['rpc'] ?? 0,
+                        controller.performanceData['visit'] ?? 0),
                   ),
                   _buildRatioRow(
-                    'BP/PTP Ratio',
-                    controller.calculateRatio(controller.performanceData['bp']!,
-                        controller.performanceData['ptp']!),
+                    'TPC/Visit Ratio',
+                    controller.calculateRatio(
+                        controller.performanceData['tpc'] ?? 0,
+                        controller.performanceData['visit'] ?? 0),
+                  ),
+                  _buildRatioRow(
+                    'OPC/Visit Ratio',
+                    controller.calculateRatio(
+                        controller.performanceData['opc'] ?? 0,
+                        controller.performanceData['visit'] ?? 0),
                   ),
                 ],
               ),
@@ -184,6 +204,245 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCommunicationPieChart(DashboardController controller) {
+    final visitCount = controller.performanceData['visit'] ?? 0;
+    final callCount = controller.performanceData['call'] ?? 0;
+    final messageCount = controller.performanceData['message'] ?? 0;
+
+    final total = visitCount + callCount + messageCount;
+
+    if (total == 0) {
+      return Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SizedBox(
+            height: 200,
+            child: Center(
+              child: Text(
+                'No communication data available',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final channelData = [
+      {'name': 'Visit', 'value': visitCount, 'color': Colors.blue},
+      {'name': 'Call', 'value': callCount, 'color': Colors.green},
+      {'name': 'Message', 'value': messageCount, 'color': Colors.orange},
+    ];
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 200,
+              child: PieChart(
+                PieChartData(
+                  sections: channelData
+                      .map((data) => PieChartSectionData(
+                            color: data['color'] as Color,
+                            value: (data['value'] as int).toDouble(),
+                            title: '${data['value']}',
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white),
+                          ))
+                      .toList(),
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 40,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              alignment: WrapAlignment.center,
+              children: channelData
+                  .map((data) => Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8.0, vertical: 4.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              color: data['color'] as Color,
+                            ),
+                            const SizedBox(width: 5),
+                            Text('${data['name']} (${data['value']})'),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactResultsBarChart(DashboardController controller) {
+    final rpcCount = controller.performanceData['rpc'] ?? 0;
+    final tpcCount = controller.performanceData['tpc'] ?? 0;
+    final opcCount = controller.performanceData['opc'] ?? 0;
+
+    final maxValue = [rpcCount, tpcCount, opcCount]
+        .reduce((a, b) => a > b ? a : b)
+        .toDouble();
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 200,
+              child: BarChart(
+                BarChartData(
+                  maxY: maxValue > 0 ? maxValue + (maxValue * 0.1) : 10,
+                  barGroups: [
+                    BarChartGroupData(
+                      x: 0,
+                      barRods: [
+                        BarChartRodData(
+                          toY: rpcCount.toDouble(),
+                          color: Colors.blue,
+                          width: 40,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(4),
+                            topRight: Radius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                    BarChartGroupData(
+                      x: 1,
+                      barRods: [
+                        BarChartRodData(
+                          toY: tpcCount.toDouble(),
+                          color: Colors.green,
+                          width: 40,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(4),
+                            topRight: Radius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                    BarChartGroupData(
+                      x: 2,
+                      barRods: [
+                        BarChartRodData(
+                          toY: opcCount.toDouble(),
+                          color: Colors.orange,
+                          width: 40,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(4),
+                            topRight: Radius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  titlesData: FlTitlesData(
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          switch (value.toInt()) {
+                            case 0:
+                              return const Text('RPC',
+                                  style: TextStyle(fontSize: 12));
+                            case 1:
+                              return const Text('TPC',
+                                  style: TextStyle(fontSize: 12));
+                            case 2:
+                              return const Text('OPC',
+                                  style: TextStyle(fontSize: 12));
+                            default:
+                              return const Text('');
+                          }
+                        },
+                      ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        getTitlesWidget: (value, meta) {
+                          return Text(
+                            value.toInt().toString(),
+                            style: const TextStyle(fontSize: 10),
+                          );
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: maxValue > 10 ? (maxValue / 5) : 2,
+                  ),
+                  borderData: FlBorderData(show: false),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildBarLegendItem('RPC', rpcCount, Colors.blue),
+                _buildBarLegendItem('TPC', tpcCount, Colors.green),
+                _buildBarLegendItem('OPC', opcCount, Colors.orange),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBarLegendItem(String label, int value, Color color) {
+    return Column(
+      children: [
+        Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          value.toString(),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+      ],
     );
   }
 

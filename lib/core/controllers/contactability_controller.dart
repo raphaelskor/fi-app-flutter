@@ -45,14 +45,15 @@ class ContactabilityController extends ChangeNotifier {
   Position? _currentLocation;
 
   // New form fields for enhanced contactability
-  VisitAction? _selectedVisitAction;
-  VisitStatus? _selectedVisitStatus;
   ContactResult? _selectedContactResult;
-  VisitLocation? _selectedVisitLocation;
   VisitBySkorTeam _selectedVisitBySkorTeam = VisitBySkorTeam.yes;
+  PersonContacted? _selectedPersonContacted;
+  ActionLocation? _selectedActionLocation;
   String _visitNotes = '';
   String _visitAgent = '';
   String _visitAgentTeamLead = '';
+  String _newPhoneNumber = '';
+  String _newAddress = '';
   DateTime? _contactabilityDateTime;
 
   // Image handling for visits
@@ -79,14 +80,15 @@ class ContactabilityController extends ChangeNotifier {
       _loadingState == ContactabilityLoadingState.submitting;
 
   // New getters for enhanced form
-  VisitAction? get selectedVisitAction => _selectedVisitAction;
-  VisitStatus? get selectedVisitStatus => _selectedVisitStatus;
   ContactResult? get selectedContactResult => _selectedContactResult;
-  VisitLocation? get selectedVisitLocation => _selectedVisitLocation;
   VisitBySkorTeam get selectedVisitBySkorTeam => _selectedVisitBySkorTeam;
+  PersonContacted? get selectedPersonContacted => _selectedPersonContacted;
+  ActionLocation? get selectedActionLocation => _selectedActionLocation;
   String get visitNotes => _visitNotes;
   String get visitAgent => _visitAgent;
   String get visitAgentTeamLead => _visitAgentTeamLead;
+  String get newPhoneNumber => _newPhoneNumber;
+  String get newAddress => _newAddress;
   DateTime? get contactabilityDateTime => _contactabilityDateTime;
   List<File> get selectedImages => _selectedImages;
 
@@ -237,19 +239,6 @@ class ContactabilityController extends ChangeNotifier {
             '${_currentLocation!.latitude},${_currentLocation!.longitude}';
       }
 
-      // Add visit-specific fields
-      if (_selectedVisitLocation != null) {
-        submitData['Visit_Location'] = _selectedVisitLocation!.apiValue;
-      }
-
-      if (_selectedVisitAction != null) {
-        submitData['Visit_Action'] = _selectedVisitAction!.apiValue;
-      }
-
-      if (_selectedVisitStatus != null) {
-        submitData['Visit_Status'] = _selectedVisitStatus!.apiValue;
-      }
-
       if (_selectedContactResult != null) {
         submitData['Contact_Result'] = _selectedContactResult!.apiValue;
 
@@ -265,6 +254,26 @@ class ContactabilityController extends ChangeNotifier {
                 '📅 PTP Date formatted for API: ${TimezoneUtils.formatDateForApi(ptpDate)} (${TimezoneUtils.getTimezoneDisplay()})');
           }
         }
+      }
+
+      // Add required Person Contacted field
+      if (_selectedPersonContacted != null) {
+        submitData['Person_Contacted'] = _selectedPersonContacted!.apiValue;
+      }
+
+      // Add required Action Location field
+      if (_selectedActionLocation != null) {
+        submitData['Action_Location'] = _selectedActionLocation!.apiValue;
+      }
+
+      // Add optional new phone number field
+      if (_newPhoneNumber.trim().isNotEmpty) {
+        submitData['New_Phone_Number'] = _newPhoneNumber.trim();
+      }
+
+      // Add optional new address field
+      if (_newAddress.trim().isNotEmpty) {
+        submitData['New_Address'] = _newAddress.trim();
       }
 
       submitData['Visit_Notes'] = _visitNotes.trim();
@@ -343,28 +352,23 @@ class ContactabilityController extends ChangeNotifier {
   }
 
   // New form methods for enhanced contactability
-  void setSelectedVisitAction(VisitAction? action) {
-    _selectedVisitAction = action;
-    notifyListeners();
-  }
-
-  void setSelectedVisitStatus(VisitStatus? status) {
-    _selectedVisitStatus = status;
-    notifyListeners();
-  }
-
   void setSelectedContactResult(ContactResult? result) {
     _selectedContactResult = result;
     notifyListeners();
   }
 
-  void setSelectedVisitLocation(VisitLocation? location) {
-    _selectedVisitLocation = location;
+  void setSelectedVisitBySkorTeam(VisitBySkorTeam value) {
+    _selectedVisitBySkorTeam = value;
     notifyListeners();
   }
 
-  void setSelectedVisitBySkorTeam(VisitBySkorTeam value) {
-    _selectedVisitBySkorTeam = value;
+  void setSelectedPersonContacted(PersonContacted? person) {
+    _selectedPersonContacted = person;
+    notifyListeners();
+  }
+
+  void setSelectedActionLocation(ActionLocation? location) {
+    _selectedActionLocation = location;
     notifyListeners();
   }
 
@@ -380,6 +384,16 @@ class ContactabilityController extends ChangeNotifier {
 
   void setVisitAgentTeamLead(String teamLead) {
     _visitAgentTeamLead = teamLead;
+    notifyListeners();
+  }
+
+  void setNewPhoneNumber(String phoneNumber) {
+    _newPhoneNumber = phoneNumber;
+    notifyListeners();
+  }
+
+  void setNewAddress(String address) {
+    _newAddress = address;
     notifyListeners();
   }
 
@@ -407,16 +421,15 @@ class ContactabilityController extends ChangeNotifier {
     _selectedChannel = ContactabilityChannel.call;
     _selectedResult = null;
     _notes = '';
-    _selectedVisitAction = null;
-    _selectedVisitStatus = null;
     _selectedContactResult = null;
-    _selectedVisitLocation = null;
     _selectedVisitBySkorTeam = VisitBySkorTeam.yes;
     _visitNotes = '';
     _visitAgent = '';
     _visitAgentTeamLead = '';
+    _newPhoneNumber = '';
+    _newAddress = '';
     _selectedImages.clear();
-    _contactabilityDateTime = DateTime.now();
+    _contactabilityDateTime = TimezoneUtils.nowInJakarta();
     notifyListeners();
   }
 

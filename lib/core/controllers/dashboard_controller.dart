@@ -21,11 +21,13 @@ class DashboardController extends ChangeNotifier {
   DashboardLoadingState _loadingState = DashboardLoadingState.initial;
   Map<String, int> _performanceData = {
     'visit': 0,
+    'call': 0,
+    'message': 0,
     'rpc': 0,
     'tpc': 0,
-    'ptp': 0,
-    'kp': 0,
-    'bp': 0,
+    'opc': 0,
+    'ptp_all_time': 0,
+    'ptp_this_month': 0,
   };
   String? _errorMessage;
   DateTime? _lastRefresh;
@@ -59,21 +61,24 @@ class DashboardController extends ChangeNotifier {
         forceRefresh: forceRefresh,
       );
 
-      // Update performance data
+      // The API service already processes and maps the data to correct field names
+      // responseData contains mapped fields: 'visit', 'call', 'message', etc.
       _performanceData = {
         'visit': responseData['visit'] ?? 0,
+        'call': responseData['call'] ?? 0,
+        'message': responseData['message'] ?? 0,
         'rpc': responseData['rpc'] ?? 0,
         'tpc': responseData['tpc'] ?? 0,
-        'ptp': responseData['ptp'] ?? 0,
-        'kp': responseData['kp'] ?? 0,
-        'bp': responseData['bp'] ?? 0,
+        'opc': responseData['opc'] ?? 0,
+        'ptp_all_time': responseData['ptp_all_time'] ?? 0,
+        'ptp_this_month': responseData['ptp_this_month'] ?? 0,
       };
 
       _lastRefresh = DateTime.now();
 
       debugPrint('✅ Dashboard data loaded successfully: $_performanceData');
       debugPrint(
-          '📊 Individual counts: Visit=${_performanceData['visit']}, RPC=${_performanceData['rpc']}, TPC=${_performanceData['tpc']}, PTP=${_performanceData['ptp']}, KP=${_performanceData['kp']}, BP=${_performanceData['bp']}');
+          '📊 Individual counts: Visit=${_performanceData['visit']}, Call=${_performanceData['call']}, Message=${_performanceData['message']}, RPC=${_performanceData['rpc']}, TPC=${_performanceData['tpc']}, OPC=${_performanceData['opc']}, PTP All=${_performanceData['ptp_all_time']}, PTP Month=${_performanceData['ptp_this_month']}');
       _setLoadingState(DashboardLoadingState.loaded);
     } catch (e) {
       debugPrint('❌ Error loading dashboard data: $e');
