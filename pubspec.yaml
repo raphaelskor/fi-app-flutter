@@ -21,6 +21,8 @@ dependencies:
   image_picker: ^1.0.4
   cached_network_image: ^3.3.0 # Added for loading images from URLs
   shared_preferences: ^2.2.2 # Added for storing user data
+  flutter_map: ^6.1.0 # Added for OpenStreetMap integration
+  latlong2: ^0.9.1 # Added for latitude/longitude handling
 
 dev_dependencies:
   flutter_test:

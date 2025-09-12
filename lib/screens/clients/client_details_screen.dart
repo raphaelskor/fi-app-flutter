@@ -7,6 +7,7 @@ import '../../core/utils/app_utils.dart' as AppUtils;
 import '../../widgets/common_widgets.dart';
 import '../contactability_form_screen.dart';
 import '../contactability/contactability_details_screen.dart';
+import 'client_location_history_screen.dart';
 
 class ClientDetailsScreen extends StatefulWidget {
   final Client client;
@@ -102,6 +103,13 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
         title: Text(widget.client.name),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.location_history),
+            tooltip: 'Location History',
+            onPressed: () => _navigateToLocationHistory(),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -937,5 +945,16 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
       default:
         return Colors.grey;
     }
+  }
+
+  void _navigateToLocationHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ClientLocationHistoryScreen(
+          client: widget.client,
+        ),
+      ),
+    );
   }
 }
