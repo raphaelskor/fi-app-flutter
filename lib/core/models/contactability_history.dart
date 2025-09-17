@@ -14,6 +14,7 @@ class ContactabilityHistory {
   final DateTime createdTime;
   final DateTime? modifiedTime;
   final DateTime? visitDate;
+  final DateTime? contactDate; // Add contact date field
   final String? dpdbucket;
   final String? contactResult;
   final String? messageSentFor;
@@ -35,6 +36,7 @@ class ContactabilityHistory {
     required this.createdTime,
     this.modifiedTime,
     this.visitDate,
+    this.contactDate,
     this.dpdbucket,
     this.contactResult,
     this.messageSentFor,
@@ -48,6 +50,7 @@ class ContactabilityHistory {
     DateTime createdTime = TimezoneUtils.nowInJakarta();
     DateTime? modifiedTime;
     DateTime? visitDate;
+    DateTime? contactDate; // Add contactDate parsing
 
     try {
       if (json['Created_Time'] != null) {
@@ -58,6 +61,14 @@ class ContactabilityHistory {
       }
       if (json['Visit_Date'] != null) {
         visitDate = TimezoneUtils.parseApiDateTime(json['Visit_Date']);
+      }
+
+      // Parse contact date - prioritize Contact_Date over Created_Time
+      if (json['Contact_Date'] != null) {
+        contactDate = TimezoneUtils.parseApiDateTime(json['Contact_Date']);
+      } else {
+        // If no Contact_Date, use Created_Time as contact date
+        contactDate = createdTime;
       }
     } catch (e) {
       print('Error parsing dates in ContactabilityHistory: $e');
@@ -81,6 +92,7 @@ class ContactabilityHistory {
       createdTime: createdTime,
       modifiedTime: modifiedTime,
       visitDate: visitDate,
+      contactDate: contactDate,
       dpdbucket: json['DPD_Bucket']?.toString(),
       contactResult: json['Contact_Result']?.toString(),
       messageSentFor: json['Message_Sent_For']?.toString(),
@@ -193,7 +205,9 @@ class ContactabilityHistory {
   }
 
   DateTime get contactedAt {
-    return visitDate ?? modifiedTime ?? createdTime;
+    // Use contactDate if available (prioritas Contact_Date dari API),
+    // otherwise fallback to visitDate, modifiedTime, or createdTime
+    return contactDate ?? visitDate ?? modifiedTime ?? createdTime;
   }
 
   @override

@@ -32,6 +32,32 @@ class ClientLocation {
     );
   }
 
+  factory ClientLocation.fromJson(Map<String, dynamic> json) {
+    return ClientLocation(
+      id: json['id'] ?? '',
+      timestamp: DateTime.parse(json['timestamp']),
+      skorUserId: json['skorUserId'] ?? '',
+      latitude: json['latitude']?.toDouble() ?? 0.0,
+      longitude: json['longitude']?.toDouble() ?? 0.0,
+      eventType: json['eventType'] ?? '',
+      ipAddress: json['ipAddress'] ?? '',
+      deviceId: json['deviceId'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'timestamp': timestamp.toIso8601String(),
+      'skorUserId': skorUserId,
+      'latitude': latitude,
+      'longitude': longitude,
+      'eventType': eventType,
+      'ipAddress': ipAddress,
+      'deviceId': deviceId,
+    };
+  }
+
   @override
   String toString() {
     return 'ClientLocation(id: $id, timestamp: $timestamp, lat: $latitude, lng: $longitude, eventType: $eventType)';

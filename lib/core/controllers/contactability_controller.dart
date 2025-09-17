@@ -6,6 +6,7 @@ import '../models/api_models.dart';
 import '../repositories/client_repository.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/client_location_cache_service.dart';
 import '../exceptions/app_exception.dart';
 import '../services/location_service.dart';
 import '../utils/timezone_utils.dart';
@@ -126,9 +127,21 @@ class ContactabilityController extends ChangeNotifier {
 
   // Load contactability history from Skorcard API
   Future<void> loadContactabilityHistory({bool refresh = false}) async {
-    if (_clientId == null || _clientId!.isEmpty) {
+    // Determine which ID to use for the API call
+    String? apiCallId = _clientId;
+
+    // If clientId is empty/null/invalid, try to use skorUserId
+    if (apiCallId == null ||
+        apiCallId.isEmpty ||
+        apiCallId.toLowerCase() == 'null') {
+      apiCallId = _skorUserId;
       debugPrint(
-          'No valid Client ID available for contactability history: $_clientId');
+          '⚠️ Client ID is invalid, trying skorUserId instead: $apiCallId');
+    }
+
+    if (apiCallId == null || apiCallId.isEmpty) {
+      debugPrint(
+          '❌ No valid ID available for contactability history: clientId=$_clientId, skorUserId=$_skorUserId');
       _contactabilityHistory.clear();
       _setLoadingState(ContactabilityLoadingState.loaded);
       return;
@@ -143,14 +156,14 @@ class ContactabilityController extends ChangeNotifier {
       _setLoadingState(ContactabilityLoadingState.loading);
 
       debugPrint(
-          '📡 Fetching contactability history for Client ID: $_clientId');
+          '📡 Fetching contactability history for ID: $apiCallId (clientId=$_clientId, skorUserId=$_skorUserId)');
 
       // Fetch data from Skorcard API with error handling
       final List<Map<String, dynamic>> rawHistory;
       try {
-        rawHistory = await _apiService.fetchContactabilityHistory(_clientId!);
+        rawHistory = await _apiService.fetchContactabilityHistory(apiCallId);
         debugPrint(
-            '✅ Fetched ${rawHistory.length} contactability records for $_clientId');
+            '✅ Fetched ${rawHistory.length} contactability records for $apiCallId');
       } catch (apiError) {
         debugPrint('❌ API Error fetching contactability history: $apiError');
         _contactabilityHistory.clear();
@@ -160,14 +173,53 @@ class ContactabilityController extends ChangeNotifier {
 
       // Convert to ContactabilityHistory objects with error handling
       final List<ContactabilityHistory> historyList = [];
+      String? realClientId; // Store the real Client ID from contactability data
+
       for (final item in rawHistory) {
         try {
           final history = ContactabilityHistory.fromSkorcardApi(item);
-          // Add all records since we're filtering by client ID in the API call
           historyList.add(history);
+
+          // Extract the real Client ID from the first contactability record
+          if (realClientId == null && item['id'] != null) {
+            realClientId = item['id']?.toString();
+            debugPrint(
+                '🔍 Found real Client ID from contactability data: $realClientId');
+          }
         } catch (e) {
           debugPrint('Error parsing contactability history item: $e');
           // Skip this item and continue with others
+        }
+      }
+
+      // If we found a real Client ID and have SkorUserId, update the location cache
+      if (realClientId != null &&
+          realClientId.isNotEmpty &&
+          _skorUserId != null &&
+          _skorUserId!.isNotEmpty) {
+        debugPrint(
+            '🔄 Updating location cache with real Client ID: $realClientId');
+
+        try {
+          final cacheService = ClientLocationCacheService.instance;
+          final cachedData =
+              await cacheService.getCachedClientLocationData(_skorUserId!);
+
+          if (cachedData != null) {
+            // Re-cache the data with the correct Client ID
+            await cacheService.cacheClientLocationData(
+              skorUserId: _skorUserId!,
+              locations: cachedData.locations,
+              addresses: cachedData.addresses,
+              clientId: realClientId,
+              clientName: cachedData.clientName,
+              clientPhone: cachedData.clientPhone,
+            );
+            debugPrint(
+                '✅ Updated location cache with real Client ID: $realClientId');
+          }
+        } catch (e) {
+          debugPrint('❌ Error updating location cache with real Client ID: $e');
         }
       }
 

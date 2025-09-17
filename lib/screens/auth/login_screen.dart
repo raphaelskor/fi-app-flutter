@@ -131,16 +131,22 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await Provider.of<AuthService>(context, listen: false).login(
-        _emailController.text.trim(),
-        _pinController.text.trim(),
-      );
+      final email = _emailController.text.trim();
+      final pin = _pinController.text.trim();
+
+      print('🔐 Login attempt: email=$email, pin=$pin');
+
+      await Provider.of<AuthService>(context, listen: false).login(email, pin);
+
+      print('✅ Login successful, navigating...');
     } catch (e) {
+      print('❌ Login failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString()),
+            content: Text('Login Error: ${e.toString()}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }

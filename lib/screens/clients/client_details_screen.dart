@@ -219,6 +219,9 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
               child: Column(
                 children: [
                   _iconDetailRow(Icons.badge, 'Client ID', widget.client.id),
+                  if (widget.client.skorUserId != null)
+                    _iconDetailRow(Icons.fingerprint, 'Skor User ID',
+                        widget.client.skorUserId!),
                   _iconDetailRow(Icons.person, 'Full Name', widget.client.name),
                   _iconDetailRow(Icons.phone, 'Mobile',
                       AppUtils.StringUtils.formatPhone(widget.client.phone)),

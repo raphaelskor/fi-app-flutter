@@ -22,6 +22,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
   String _searchQuery = '';
   DateTime? _startDate;
   DateTime? _endDate;
+  String? _selectedContactResult;
   bool _showFilters = false;
 
   @override
@@ -108,7 +109,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
     }
   }
 
-  // Filter history items based on search query and date range
+  // Filter history items based on search query, date range, and contact result
   List<ClientContactabilityHistoryItem> _filterHistoryItems(
       List<ClientContactabilityHistoryItem> items) {
     return items.where((item) {
@@ -144,7 +145,12 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
         }
       }
 
-      return matchesSearch && matchesDateRange;
+      // Contact result filter
+      bool matchesContactResult = _selectedContactResult == null ||
+          item.contactResult.toLowerCase() ==
+              _selectedContactResult!.toLowerCase();
+
+      return matchesSearch && matchesDateRange && matchesContactResult;
     }).toList();
   }
 
@@ -240,6 +246,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
                       _searchController.clear();
                       _startDate = null;
                       _endDate = null;
+                      _selectedContactResult = null;
                     });
                   },
                   icon: const Icon(Icons.clear_all),
@@ -323,12 +330,16 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
                     _showFilters ? Icons.filter_list_off : Icons.filter_list,
                     size: 20,
                   ),
-                  label: Text('Date Filter'),
+                  label: Text('Filters'),
                   style: OutlinedButton.styleFrom(
-                    backgroundColor: (_startDate != null || _endDate != null)
+                    backgroundColor: (_startDate != null ||
+                            _endDate != null ||
+                            _selectedContactResult != null)
                         ? Colors.blue[50]
                         : null,
-                    foregroundColor: (_startDate != null || _endDate != null)
+                    foregroundColor: (_startDate != null ||
+                            _endDate != null ||
+                            _selectedContactResult != null)
                         ? Colors.blue[700]
                         : null,
                   ),
@@ -434,19 +445,193 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 16),
+
+                      // Contact Result Filter
+                      const Text(
+                        'Filter by Contact Result',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: _selectedContactResult,
+                        decoration: const InputDecoration(
+                          labelText: 'Contact Result',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.check_circle_outline),
+                        ),
+                        hint: const Text('Select contact result'),
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('All Results'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Alamat Ditemukan, Rumah Kosong',
+                            child: Text('Alamat Ditemukan, Rumah Kosong'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Dilarang Masuk Perumahan',
+                            child: Text('Dilarang Masuk Perumahan'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Dilarang Masuk Kantor',
+                            child: Text('Dilarang Masuk Kantor'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Menghindar',
+                            child: Text('Menghindar'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Titip Surat',
+                            child: Text('Titip Surat'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Alamat Tidak Ditemukan',
+                            child: Text('Alamat Tidak Ditemukan'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Alamat Salah',
+                            child: Text('Alamat Salah'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Konsumen Tidak Dikenal',
+                            child: Text('Konsumen Tidak Dikenal'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Pindah, Tidak Ditemukan',
+                            child: Text('Pindah, Tidak Ditemukan'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Pindah, Alamat Baru',
+                            child: Text('Pindah, Alamat Baru'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Meninggal Dunia',
+                            child: Text('Meninggal Dunia'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Mengundurkan Diri',
+                            child: Text('Mengundurkan Diri'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Berhenti Bekerja',
+                            child: Text('Berhenti Bekerja'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Sedang Renovasi',
+                            child: Text('Sedang Renovasi'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Bencana Alam',
+                            child: Text('Bencana Alam'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Kondisi Medis',
+                            child: Text('Kondisi Medis'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Sengketa Hukum',
+                            child: Text('Sengketa Hukum'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Kunjungan Ulang',
+                            child: Text('Kunjungan Ulang'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Promise to Pay (PTP)',
+                            child: Text('Promise to Pay (PTP)'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Negotiation',
+                            child: Text('Negotiation'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Hot Prospect',
+                            child: Text('Hot Prospect'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Already Paid',
+                            child: Text('Already Paid'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Refuse to Pay',
+                            child: Text('Refuse to Pay'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Dispute',
+                            child: Text('Dispute'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Not Recognized',
+                            child: Text('Not Recognized'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Partial Payment',
+                            child: Text('Partial Payment'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'Failed to Pay',
+                            child: Text('Failed to Pay'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'WA One Tick',
+                            child: Text('WA One Tick'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'WA Two Tick',
+                            child: Text('WA Two Tick'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'WA Blue Tick',
+                            child: Text('WA Blue Tick'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'WA Not Registered',
+                            child: Text('WA Not Registered'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'SP 1',
+                            child: Text('SP 1'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'SP 2',
+                            child: Text('SP 2'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'SP 3',
+                            child: Text('SP 3'),
+                          ),
+                          const DropdownMenuItem<String>(
+                            value: 'No Respond',
+                            child: Text('No Respond'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedContactResult = value;
+                          });
+                        },
+                      ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          if (_startDate != null || _endDate != null)
+                          if (_startDate != null ||
+                              _endDate != null ||
+                              _selectedContactResult != null)
                             TextButton.icon(
                               onPressed: () {
                                 setState(() {
                                   _startDate = null;
                                   _endDate = null;
+                                  _selectedContactResult = null;
                                 });
                               },
                               icon: const Icon(Icons.clear),
-                              label: const Text('Clear Dates'),
+                              label: const Text('Clear All Filters'),
                             ),
                         ],
                       ),
@@ -519,7 +704,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
               ),
               const SizedBox(height: 8),
               Text(
-                '${TimezoneUtils.formatIndonesianDate(item.createdTime)} • ${TimezoneUtils.formatTime(item.createdTime)}',
+                '${_formatAdjustedDate(item.createdTime)} • ${_formatAdjustedTime(item.createdTime)}',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
 
@@ -744,5 +929,17 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
       default:
         return Icons.contact_phone;
     }
+  }
+
+  // Helper method to format time with 7 hours subtraction
+  String _formatAdjustedTime(DateTime dateTime) {
+    final adjustedTime = dateTime.subtract(Duration(hours: 7));
+    return TimezoneUtils.formatTime(adjustedTime);
+  }
+
+  // Helper method to format date with 7 hours subtraction
+  String _formatAdjustedDate(DateTime dateTime) {
+    final adjustedDateTime = dateTime.subtract(Duration(hours: 7));
+    return TimezoneUtils.formatIndonesianDate(adjustedDateTime);
   }
 }

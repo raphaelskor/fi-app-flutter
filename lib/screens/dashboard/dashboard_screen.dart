@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/controllers/dashboard_controller.dart';
+import '../locations/all_client_location_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -176,6 +177,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AllClientLocationScreen(),
+            ),
+          );
+        },
+        backgroundColor: const Color.fromARGB(255, 129, 129, 129),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.map),
+        label: const Text('Client Locations'),
+        tooltip: 'View All Client Locations',
       ),
     );
   }

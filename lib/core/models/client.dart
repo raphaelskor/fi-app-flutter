@@ -98,6 +98,18 @@ class Client {
       clientName = name1;
     }
 
+    // Debug API data structure - only show non-null fields
+    print('🔍 Client.fromSkorcardApi - Debug API data:');
+    print('   - id field: "${json['id']}"');
+    if (json['User_ID'] != null && json['User_ID'].toString() != 'null') {
+      print('   - User_ID field: "${json['User_ID']}"');
+    }
+    if (json['user_ID'] != null && json['user_ID'].toString() != 'null') {
+      print('   - user_ID field: "${json['user_ID']}"');
+    }
+    print('   - Client Name: "$clientName"');
+    print('   - Available keys: ${json.keys.toList()}');
+
     return Client(
       id: json['id']?.toString() ?? '',
       name: clientName,

@@ -182,6 +182,28 @@ class _ContactabilityDetailsScreenState
                 'Client ID',
                 widget.contactability.skorUserId,
               ),
+            // Always show client name if available
+            if (_getClientName().isNotEmpty)
+              _buildInfoRow(
+                Icons.person,
+                'Client Name',
+                _getClientName(),
+              ),
+            // Show User ID if available and different from Skor User ID
+            if (_getUserId().isNotEmpty &&
+                _getUserId() != widget.contactability.skorUserId)
+              _buildInfoRow(
+                Icons.badge,
+                'User ID',
+                _getUserId(),
+              ),
+            // Add phone number if available
+            if (_getPhoneNumber().isNotEmpty)
+              _buildInfoRow(
+                Icons.phone,
+                'Phone Number',
+                _getPhoneNumber(),
+              ),
           ],
         ),
       ),
@@ -491,14 +513,6 @@ class _ContactabilityDetailsScreenState
                     'Called To',
                     widget.contactability.rawData['Call_Done_to'].toString(),
                   ),
-                if (_hasValue(
-                    widget.contactability.rawData['Phone_Contact_Number']))
-                  _buildInfoRow(
-                    Icons.phone_android,
-                    'Contact Number',
-                    widget.contactability.rawData['Phone_Contact_Number']
-                        .toString(),
-                  ),
                 if (_hasValue(widget.contactability.rawData['If_Connected']))
                   _buildInfoRow(
                     Icons.check_circle,
@@ -678,6 +692,27 @@ class _ContactabilityDetailsScreenState
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
+                // Client Information first
+                if (_getClientName().isNotEmpty)
+                  _buildInfoRow(
+                    Icons.person,
+                    'Client Name',
+                    _getClientName(),
+                  ),
+                if (_getPhoneNumber().isNotEmpty)
+                  _buildInfoRow(
+                    Icons.phone_android,
+                    'Phone Number',
+                    _getPhoneNumber(),
+                  ),
+                if (_hasValue(widget.contactability.rawData['Email']))
+                  _buildInfoRow(
+                    Icons.email,
+                    'Email',
+                    widget.contactability.rawData['Email'].toString(),
+                  ),
+
+                // Other information
                 if (widget.contactability.dpdbucket != null)
                   _buildInfoRow(
                     Icons.category,
@@ -697,18 +732,6 @@ class _ContactabilityDetailsScreenState
                     'Record Status',
                     widget.contactability.rawData['Record_Status__s']
                         .toString(),
-                  ),
-                if (_hasValue(widget.contactability.rawData['Mobile']))
-                  _buildInfoRow(
-                    Icons.phone_android,
-                    'Mobile',
-                    widget.contactability.rawData['Mobile'].toString(),
-                  ),
-                if (_hasValue(widget.contactability.rawData['Email']))
-                  _buildInfoRow(
-                    Icons.email,
-                    'Email',
-                    widget.contactability.rawData['Email'].toString(),
                   ),
                 if (_hasValue(widget.contactability.rawData['Agency_If_Any']))
                   _buildInfoRow(
@@ -947,5 +970,91 @@ class _ContactabilityDetailsScreenState
         ),
       );
     }
+  }
+
+  String _getClientName() {
+    // Try to get client name from various possible fields in rawData
+    final rawData = widget.contactability.rawData;
+
+    // Primary source: User_ID.name (nested object from API)
+    if (rawData['User_ID'] != null && rawData['User_ID'] is Map) {
+      final userIdData = rawData['User_ID'] as Map<String, dynamic>;
+      if (_hasValue(userIdData['name'])) {
+        return userIdData['name'].toString();
+      }
+    }
+
+    // Fallback to other client name fields
+    if (_hasValue(rawData['Client_Name'])) {
+      return rawData['Client_Name'].toString();
+    }
+    if (_hasValue(rawData['Customer_Name'])) {
+      return rawData['Customer_Name'].toString();
+    }
+    if (_hasValue(rawData['Borrower_Name'])) {
+      return rawData['Borrower_Name'].toString();
+    }
+    if (_hasValue(rawData['Full_Name'])) {
+      return rawData['Full_Name'].toString();
+    }
+
+    // If no specific client name found, use the general 'name' field from contactability
+    if (widget.contactability.name.isNotEmpty &&
+        widget.contactability.name.toLowerCase() != 'unknown' &&
+        widget.contactability.name.toLowerCase() != 'null') {
+      return widget.contactability.name;
+    }
+
+    return '';
+  }
+
+  String _getUserId() {
+    // Try to get user ID from User_ID field or other ID fields
+    final rawData = widget.contactability.rawData;
+
+    // Primary source: User_ID.id (nested object from API)
+    if (rawData['User_ID'] != null && rawData['User_ID'] is Map) {
+      final userIdData = rawData['User_ID'] as Map<String, dynamic>;
+      if (_hasValue(userIdData['id'])) {
+        return userIdData['id'].toString();
+      }
+    }
+
+    // Check other possible user ID fields
+    if (_hasValue(rawData['User_ID'])) {
+      return rawData['User_ID'].toString();
+    }
+    if (_hasValue(rawData['Client_ID'])) {
+      return rawData['Client_ID'].toString();
+    }
+    if (_hasValue(rawData['Customer_ID'])) {
+      return rawData['Customer_ID'].toString();
+    }
+
+    return '';
+  }
+
+  String _getPhoneNumber() {
+    // Try to get phone number from various possible fields in rawData
+    final rawData = widget.contactability.rawData;
+
+    // Check phone number fields
+    if (_hasValue(rawData['Phone_Contact_Number'])) {
+      return rawData['Phone_Contact_Number'].toString();
+    }
+    if (_hasValue(rawData['Mobile'])) {
+      return rawData['Mobile'].toString();
+    }
+    if (_hasValue(rawData['Phone_Number'])) {
+      return rawData['Phone_Number'].toString();
+    }
+    if (_hasValue(rawData['Contact_Number'])) {
+      return rawData['Contact_Number'].toString();
+    }
+    if (_hasValue(rawData['Mobile_Number'])) {
+      return rawData['Mobile_Number'].toString();
+    }
+
+    return '';
   }
 }

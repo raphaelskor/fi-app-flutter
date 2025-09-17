@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/client_id_mapping_service.dart';
+import '../services/client_location_cache_service.dart';
 import '../exceptions/app_exception.dart';
 import '../models/contactability_history.dart';
 import '../utils/timezone_utils.dart';
@@ -20,6 +22,7 @@ class ClientContactabilityHistoryItem {
   final String contactResult;
   final String notes;
   final DateTime createdTime;
+  final DateTime? contactDate; // New field for contact date
   final String? visitLocation;
   final String? visitAction;
   final String? visitStatus;
@@ -35,6 +38,7 @@ class ClientContactabilityHistoryItem {
     required this.contactResult,
     required this.notes,
     required this.createdTime,
+    this.contactDate,
     this.visitLocation,
     this.visitAction,
     this.visitStatus,
@@ -64,6 +68,21 @@ class ClientContactabilityHistoryItem {
       }
     }
 
+    // Parse contact date - prioritize Contact_Date over Created_Time
+    DateTime? contactDate;
+    if (json['Contact_Date'] != null) {
+      try {
+        contactDate = TimezoneUtils.parseApiDateTime(json['Contact_Date']);
+      } catch (e) {
+        print('Error parsing Contact_Date: $e');
+        // Fallback to created time if Contact_Date fails
+        contactDate = createdTime;
+      }
+    } else {
+      // If no Contact_Date, use Created_Time as contact date
+      contactDate = createdTime;
+    }
+
     // Extract contact result from various fields
     String contactResult = json['Contact_Result']?.toString() ??
         json['If_not_Connected']?.toString() ??
@@ -77,6 +96,7 @@ class ClientContactabilityHistoryItem {
       contactResult: contactResult,
       notes: notes,
       createdTime: createdTime,
+      contactDate: contactDate,
       visitLocation: json['Visit_Location']?.toString(),
       visitAction:
           json['Vist_Action']?.toString() ?? json['Visit_Action']?.toString(),
@@ -90,7 +110,43 @@ class ClientContactabilityHistoryItem {
 
   // Convert to ContactabilityHistory for compatibility
   ContactabilityHistory toContactabilityHistory() {
-    return ContactabilityHistory.fromSkorcardApi(rawData);
+    // Create ContactabilityHistory directly using parsed data to ensure consistency
+    DateTime? modifiedTime;
+    DateTime? visitDate;
+
+    try {
+      if (rawData['Modified_Time'] != null) {
+        modifiedTime = TimezoneUtils.parseApiDateTime(rawData['Modified_Time']);
+      }
+      if (rawData['Visit_Date'] != null) {
+        visitDate = TimezoneUtils.parseApiDateTime(rawData['Visit_Date']);
+      }
+    } catch (e) {
+      print('Error parsing dates in toContactabilityHistory: $e');
+    }
+
+    return ContactabilityHistory(
+      id: id,
+      skorUserId: rawData['Skor_User_ID']?.toString() ?? '',
+      name: clientName,
+      channel: channel,
+      status: visitStatus,
+      result: contactResult,
+      notes: notes,
+      visitLocation: visitLocation,
+      visitAgent: rawData['Visit_Agent']?.toString(),
+      visitLatLong: rawData['Visit_Lat_Long']?.toString(),
+      createdTime: createdTime,
+      modifiedTime: modifiedTime,
+      visitDate: visitDate,
+      contactDate: contactDate, // Use the already parsed contactDate
+      dpdbucket: rawData['DPD_Bucket']?.toString(),
+      contactResult: contactResult,
+      messageSentFor: rawData['Message_Sent_For']?.toString(),
+      deliveredTimeIfAny: rawData['Delivered_Time_If_Any']?.toString(),
+      readTimeIfAny: rawData['Read_Time_If_Any']?.toString(),
+      rawData: rawData,
+    );
   }
 }
 
@@ -137,6 +193,12 @@ class ClientContactabilityHistoryController extends ChangeNotifier {
 
       final List<dynamic> dataList = response['data'] ?? [];
 
+      // Extract Client ID -> Skor User ID mappings from the response
+      await _extractAndStoreClientIdMappings(dataList);
+
+      // Update cache with correct Client IDs
+      await _updateLocationCacheWithClientIds();
+
       final newItems = dataList
           .map((item) => ClientContactabilityHistoryItem.fromJson(item))
           .toList();
@@ -156,6 +218,91 @@ class ClientContactabilityHistoryController extends ChangeNotifier {
   // Clear error
   void clearError() {
     _clearError();
+  }
+
+  // Extract and store Client ID -> Skor User ID mappings from contactability data
+  Future<void> _extractAndStoreClientIdMappings(List<dynamic> dataList) async {
+    try {
+      final Map<String, String> mappings = {}; // skorUserId -> clientId
+
+      debugPrint(
+          '🔍 Extracting Client ID mappings from contactability data...');
+      debugPrint('📦 Data structure: ${dataList.length} items');
+
+      for (int i = 0; i < dataList.length; i++) {
+        final item = dataList[i];
+        debugPrint('📦 Item $i: ${item.runtimeType}');
+
+        if (item is Map<String, dynamic>) {
+          // Debug the structure
+          debugPrint('📦 Item $i keys: ${item.keys.toList()}');
+
+          // Look for 'data' array in each item (based on user's example structure)
+          final List<dynamic>? clientDataArray = item['data'];
+
+          if (clientDataArray != null) {
+            debugPrint(
+                '📦 Found data array with ${clientDataArray.length} items');
+
+            for (int j = 0; j < clientDataArray.length; j++) {
+              final clientData = clientDataArray[j];
+              debugPrint('📦 Data[$j]: ${clientData.runtimeType}');
+
+              if (clientData is Map<String, dynamic>) {
+                debugPrint('📦 Data[$j] keys: ${clientData.keys.toList()}');
+
+                final String? clientId = clientData['id']?.toString();
+                final String? skorUserId = clientData['User_ID']?.toString();
+
+                debugPrint('📦 Data[$j] - id: $clientId, User_ID: $skorUserId');
+
+                if (clientId != null &&
+                    clientId.isNotEmpty &&
+                    skorUserId != null &&
+                    skorUserId.isNotEmpty &&
+                    clientId.toLowerCase() != 'null' &&
+                    skorUserId.toLowerCase() != 'null') {
+                  // FIXED: Store as skorUserId -> clientId mapping
+                  mappings[skorUserId] = clientId;
+                  debugPrint(
+                      '🔗 Found mapping: Skor User ID $skorUserId → Client ID $clientId');
+                }
+              }
+            }
+          } else {
+            debugPrint('📦 No data array found in item $i');
+          }
+        }
+      }
+
+      if (mappings.isNotEmpty) {
+        final mappingService = ClientIdMappingService.instance;
+        await mappingService.storeClientIdMapping(mappings);
+        debugPrint(
+            '✅ Stored ${mappings.length} Client ID mappings from contactability data');
+
+        // Debug stored mappings
+        for (final entry in mappings.entries) {
+          debugPrint('💾 Stored: ${entry.key} → ${entry.value}');
+        }
+      } else {
+        debugPrint(
+            '⚠️ No valid Client ID mappings found in contactability data');
+      }
+    } catch (e) {
+      debugPrint('❌ Error extracting Client ID mappings: $e');
+    }
+  }
+
+  // Update location cache with correct Client IDs using mapping service
+  Future<void> _updateLocationCacheWithClientIds() async {
+    try {
+      final cacheService = ClientLocationCacheService.instance;
+      await cacheService.updateClientIdInCache();
+      debugPrint('✅ Location cache updated with correct Client IDs');
+    } catch (e) {
+      debugPrint('❌ Error updating location cache with Client IDs: $e');
+    }
   }
 
   // Private methods

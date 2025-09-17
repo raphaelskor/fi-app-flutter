@@ -445,7 +445,7 @@ extension ContactResultExtension on ContactResult {
       case ContactResult.kunjunganUlang:
         return 'Kunjungan Ulang';
       case ContactResult.ptp:
-        return 'PTP';
+        return 'Promise to Pay (PTP)';
       case ContactResult.negotiation:
         return 'Negotiation';
       case ContactResult.hotProspect:

@@ -6,11 +6,16 @@ import '../exceptions/app_exception.dart';
 import '../services/location_service.dart';
 import '../services/auth_service.dart';
 import '../services/daily_cache_service.dart';
+import '../services/client_location_cache_service.dart';
+import '../services/client_location_service.dart';
+import '../services/client_address_service.dart';
+import '../services/client_id_mapping_service.dart';
 import 'package:geolocator/geolocator.dart';
 
 enum ClientLoadingState {
   initial,
   loading,
+  caching, // New state for cache loading
   loaded,
   error,
 }
@@ -121,6 +126,13 @@ class ClientController extends ChangeNotifier {
         if (cachedClients != null) {
           _todaysClients = cachedClients;
           _clients = List.from(_todaysClients); // Keep both in sync
+
+          // Set caching state for extracting mappings from cached data
+          _setLoadingState(ClientLoadingState.caching);
+
+          // Extract and store Client ID mappings from cached data as well
+          await _extractAndStoreClientIdMappings(_todaysClients);
+
           _setLoadingState(ClientLoadingState.loaded);
           debugPrint('📦 Loaded ${cachedClients.length} clients from cache');
           return;
@@ -151,9 +163,18 @@ class ClientController extends ChangeNotifier {
         _clients = List.from(_todaysClients); // Keep both in sync
         _paginationMeta = response.pagination;
 
+        // Set caching state for processing mappings and cache
+        _setLoadingState(ClientLoadingState.caching);
+
+        // Extract and store Client ID mappings from the loaded data
+        await _extractAndStoreClientIdMappings(_todaysClients);
+
         // Save to cache for next time
         await DailyCacheService.saveTodaysClients(_todaysClients);
         debugPrint('💾 Saved ${_todaysClients.length} clients to cache');
+
+        // Auto-cache location data for all clients in background
+        _autoCacheLocationData(_todaysClients);
 
         _setLoadingState(ClientLoadingState.loaded);
       } else {
@@ -315,6 +336,141 @@ class ClientController extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  // Auto-cache location data for all clients in background
+  void _autoCacheLocationData(List<Client> clients) async {
+    try {
+      debugPrint(
+          '🚀 Starting auto-cache location data for ${clients.length} clients...');
+
+      final cacheService = ClientLocationCacheService.instance;
+
+      // Process clients in background without blocking UI
+      for (final client in clients) {
+        if (client.skorUserId == null || client.skorUserId!.isEmpty) continue;
+
+        try {
+          // Check if data is already cached and still valid
+          final cachedData = await cacheService
+              .getCachedClientLocationData(client.skorUserId!);
+          if (cachedData != null && !cachedData.isExpired) {
+            continue; // Skip if already cached and valid
+          }
+
+          debugPrint(
+              '📍 Auto-caching location data for client: ${client.skorUserId}');
+
+          // Fetch location history using ClientLocationService
+          final locationResponse =
+              await ClientLocationService.getClientLocationHistory(
+                  client.skorUserId!);
+
+          // Fetch addresses using ClientAddressService
+          final addressResponse =
+              await ClientAddressService.getClientAddresses(client.skorUserId!);
+
+          // Debug Client ID before caching
+          debugPrint('🔍 About to cache for client:');
+          debugPrint('   - Client ID: "${client.id}"');
+          debugPrint('   - Skor User ID: "${client.skorUserId}"');
+          debugPrint('   - Client Name: "${client.name}"');
+          debugPrint('   - Client Phone: "${client.phone}"');
+
+          // Cache the data
+          await cacheService.cacheClientLocationData(
+            skorUserId: client.skorUserId!,
+            locations: locationResponse.locations,
+            addresses: addressResponse.addresses,
+            clientId: client.id,
+            clientName: client.name,
+            clientPhone: client.phone,
+          );
+          debugPrint(
+              '✅ Auto-cached location data for client: ${client.skorUserId}');
+
+          // Small delay to avoid overwhelming the API
+          await Future.delayed(const Duration(milliseconds: 500));
+        } catch (e) {
+          debugPrint(
+              '❌ Error auto-caching location data for client ${client.skorUserId}: $e');
+          // Continue with next client instead of stopping
+          continue;
+        }
+      }
+
+      debugPrint('🎉 Auto-cache location data completed!');
+    } catch (e) {
+      debugPrint('❌ Error in auto-cache location data: $e');
+    }
+  }
+
+  // Extract and store Client ID mappings from loaded client data
+  Future<void> _extractAndStoreClientIdMappings(List<Client> clients) async {
+    try {
+      debugPrint(
+          '🔗 Extracting Client ID mappings from ${clients.length} clients...');
+
+      final mappingService = ClientIdMappingService.instance;
+      final mappings = <String, String>{};
+      int successCount = 0;
+      int errorCount = 0;
+
+      for (final client in clients) {
+        try {
+          final skorUserId = client.skorUserId;
+          final clientId = client.id;
+
+          debugPrint('   🔍 Processing client:');
+          debugPrint('      - Client ID: "$clientId"');
+          debugPrint('      - Skor User ID: "$skorUserId"');
+          debugPrint('      - Client Name: "${client.name}"');
+
+          if (skorUserId != null &&
+              skorUserId.isNotEmpty &&
+              clientId.isNotEmpty &&
+              clientId != 'null') {
+            // Store mapping: skorUserId -> clientId
+            mappings[skorUserId] = clientId;
+            successCount++;
+
+            debugPrint('      ✅ Will store mapping: $skorUserId → $clientId');
+          } else {
+            errorCount++;
+            debugPrint('      ❌ Invalid data - skipping');
+            debugPrint(
+                '         - skorUserId isEmpty: ${skorUserId == null || skorUserId.isEmpty}');
+            debugPrint(
+                '         - clientId isEmpty/null: ${clientId.isEmpty || clientId == "null"}');
+          }
+        } catch (e) {
+          errorCount++;
+          debugPrint('      ❌ Error processing client ${client.name}: $e');
+        }
+      }
+
+      // Store all mappings at once
+      if (mappings.isNotEmpty) {
+        await mappingService.storeClientIdMapping(mappings);
+      }
+
+      debugPrint('🔗 Client ID mapping extraction completed:');
+      debugPrint('   ✅ Success: $successCount mappings stored');
+      debugPrint('   ❌ Errors: $errorCount clients skipped');
+
+      // Update cache with new Client IDs
+      if (successCount > 0) {
+        try {
+          final cacheService = ClientLocationCacheService.instance;
+          await cacheService.updateClientIdInCache();
+          debugPrint('✅ Updated location cache with Client IDs');
+        } catch (e) {
+          debugPrint('❌ Error updating location cache: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error in _extractAndStoreClientIdMappings: $e');
+    }
   }
 
   String _getErrorMessage(dynamic error) {

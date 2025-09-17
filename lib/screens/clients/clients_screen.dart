@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'create_contactability_tab.dart';
+import 'list_client_tab.dart';
 import 'contactability_history_tab.dart';
 
 class ClientsScreen extends StatelessWidget {
@@ -9,7 +9,7 @@ class ClientsScreen extends StatelessWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Today\'s Client List'),
+          title: Text('Client Management'),
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
           bottom: TabBar(
@@ -17,14 +17,14 @@ class ClientsScreen extends StatelessWidget {
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.white,
             tabs: [
-              Tab(text: 'Create Contactability'),
+              Tab(text: 'List Clients'),
               Tab(text: 'Contactability History'),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            CreateContactabilityTab(),
+            ListClientTab(),
             ContactabilityHistoryTab(),
           ],
         ),

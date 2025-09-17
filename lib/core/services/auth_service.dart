@@ -3,6 +3,10 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'daily_cache_service.dart';
+import 'client_location_cache_service.dart';
+import 'client_id_mapping_service.dart';
+import 'api_service.dart';
 
 class AuthService extends ChangeNotifier {
   bool _isAuthenticated = false;
@@ -100,6 +104,8 @@ class AuthService extends ChangeNotifier {
 
   Future<void> login(String email, String pin) async {
     try {
+      print('🔐 Attempting login with email: $email');
+
       final response = await http.post(
         Uri.parse(
             'https://n8n.skorcard.app/webhook/e155f504-e34f-43e7-ba3e-5fce035b27c5'),
@@ -112,38 +118,79 @@ class AuthService extends ChangeNotifier {
         }),
       );
 
+      print('🌐 Response status: ${response.statusCode}');
+      print('📝 Response body: ${response.body}');
+
       if (response.statusCode == 200) {
-        final List<dynamic> responseData = json.decode(response.body);
+        final dynamic responseBody = json.decode(response.body);
 
-        if (responseData.isNotEmpty) {
-          _userData = responseData[0];
-          _isAuthenticated = true;
-
-          // Save user data to persistent storage
-          await _saveUserData(_userData!);
-
-          notifyListeners();
+        // Check if response is an object (single user) or array
+        Map<String, dynamic> userData;
+        if (responseBody is Map<String, dynamic>) {
+          // Single user object
+          userData = responseBody;
+        } else if (responseBody is List<dynamic> && responseBody.isNotEmpty) {
+          // Array with user data
+          userData = responseBody[0];
         } else {
-          throw Exception('Invalid login credentials');
+          throw Exception('Invalid login credentials - no user data found');
         }
+
+        _userData = userData;
+        _isAuthenticated = true;
+
+        // Save user data to persistent storage
+        await _saveUserData(_userData!);
+
+        print('✅ Login successful for user: ${userData['name']}');
+        notifyListeners();
       } else {
-        throw Exception('Login failed: ${response.statusCode}');
+        throw Exception(
+            'Login failed: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Login error: $e');
+      print('❌ Login error: $e');
       if (e.toString().contains('Invalid login credentials')) {
         throw Exception('Invalid email or PIN');
       } else {
         throw Exception(
-            'Login failed. Please check your connection and try again.');
+            'Login failed. Please check your connection and try again. Error: $e');
       }
     }
   }
 
   Future<void> logout() async {
+    print('🚪 Logging out user...');
+
+    // Clear all cache data
+    try {
+      print('🗑️ Clearing all cache data...');
+
+      // Clear daily cache (client data)
+      await DailyCacheService.clearAllCache();
+
+      // Clear location cache
+      await ClientLocationCacheService.instance.clearAllCache();
+
+      // Clear client ID mappings
+      await ClientIdMappingService.instance.clearMappings();
+
+      // Clear API cache
+      final apiService = ApiService();
+      apiService.clearCache();
+
+      print('✅ All cache cleared successfully');
+    } catch (e) {
+      print('❌ Error clearing cache during logout: $e');
+      // Continue with logout even if cache clearing fails
+    }
+
+    // Clear auth state
     _isAuthenticated = false;
     _userData = null;
     await _clearUserData();
+
+    print('✅ Logout completed');
     notifyListeners();
   }
 }
