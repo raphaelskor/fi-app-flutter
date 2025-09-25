@@ -130,6 +130,15 @@ class Client {
   // Helper method to get Skor User ID from raw API data
   String? get skorUserId {
     try {
+      print('🔍 Getting skorUserId from rawApiData...');
+      if (rawApiData == null) {
+        print('❌ rawApiData is null');
+        return null;
+      }
+
+      // Print all keys for debugging
+      print('🔍 Available keys in rawApiData: ${rawApiData!.keys.toList()}');
+
       // First check for user_ID (the one we need for skor_user_id parameter)
       final dynamic userIdField = rawApiData?['user_ID'];
       final String? userIdString;
@@ -146,26 +155,34 @@ class Client {
       final String? skorUserIdField = rawApiData?['Skor_User_ID']?.toString();
       final String? UserIDField = rawApiData?['User_ID']?.toString();
 
+      print('🔍 user_ID field: $userIdString');
+      print('🔍 User_ID field: $UserIDField');
+      print('🔍 Skor_User_ID field: $skorUserIdField');
+
       // Return the first valid non-empty, non-null value
       if (userIdString != null &&
           userIdString.isNotEmpty &&
           userIdString.toLowerCase() != 'null') {
+        print('✅ Using user_ID: $userIdString');
         return userIdString;
       }
       if (UserIDField != null &&
           UserIDField.isNotEmpty &&
           UserIDField.toLowerCase() != 'null') {
+        print('✅ Using User_ID: $UserIDField');
         return UserIDField;
       }
       if (skorUserIdField != null &&
           skorUserIdField.isNotEmpty &&
           skorUserIdField.toLowerCase() != 'null') {
+        print('✅ Using Skor_User_ID: $skorUserIdField');
         return skorUserIdField;
       }
 
+      print('❌ No valid skorUserId found');
       return null;
     } catch (e) {
-      print('Error getting skorUserId: $e');
+      print('❌ Error getting skorUserId: $e');
       return null;
     }
   }

@@ -160,6 +160,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final attendanceText = _convertStatusToAttendance(selectedAttendance!);
 
+      print(
+          '🔄 Submitting attendance: $attendanceText for user: ${userData['id']}');
+      print('📅 Date: ${_dateOnly(today)}');
+
       final response = await http.post(
         Uri.parse(
             'https://n8n.skorcard.app/webhook/491ba156-a378-4d24-aaf8-bcd2d4ddd235'),
@@ -172,8 +176,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }),
       );
 
+      print('📡 Response status: ${response.statusCode}');
+      print('📡 Response body: ${response.body}');
+
       if (response.statusCode == 200) {
-        // Update local state immediately to prevent multiple submissions
+        // Update local state immediately
         setState(() {
           attendanceMap[_dateOnly(today)] = selectedAttendance!;
           submittedToday = true;

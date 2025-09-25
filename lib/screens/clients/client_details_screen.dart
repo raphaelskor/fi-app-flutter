@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:io';
 import '../../core/controllers/contactability_controller.dart';
 import '../../core/models/client.dart';
 import '../../core/models/contactability_history.dart';
+import '../../core/services/photo_service.dart';
 import '../../core/utils/app_utils.dart' as AppUtils;
 import '../../widgets/common_widgets.dart';
 import '../contactability_form_screen.dart';
@@ -21,6 +24,12 @@ class ClientDetailsScreen extends StatefulWidget {
 class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final PhotoService _photoService = PhotoService();
+
+  // Photo state management
+  Map<String, String?> _photoPaths = {'ktp': null, 'selfie': null};
+  bool _isLoadingPhotos = false;
+  String? _photoError;
 
   @override
   void initState() {
@@ -41,10 +50,29 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
             '🔍 Client Skor_User_ID: ${widget.client.rawApiData?['Skor_User_ID']}');
         debugPrint('🔍 Final skorUserId: $skorUserId');
 
+        // Enhanced debugging for photo loading
+        if (skorUserId != null && skorUserId.isNotEmpty) {
+          debugPrint('✅ skorUserId is available, will load photos');
+        } else {
+          debugPrint('❌ skorUserId is null or empty, photos will not load');
+          debugPrint('🔍 Raw API data dump:');
+          widget.client.rawApiData?.forEach((key, value) {
+            if (key.toLowerCase().contains('user') ||
+                key.toLowerCase().contains('id')) {
+              debugPrint('   - $key: $value');
+            }
+          });
+        }
+
         context.read<ContactabilityController>().initialize(
               widget.client.id,
               skorUserId: skorUserId,
             );
+
+        // Load user photos if skorUserId is available
+        if (skorUserId != null && skorUserId.isNotEmpty) {
+          _loadUserPhotos(skorUserId);
+        }
       } catch (e) {
         debugPrint('Error initializing ContactabilityController: $e');
         // Initialize with empty skorUserId if there's an error
@@ -60,6 +88,61 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// Loads user photos (KTP and Selfie) from the API
+  Future<void> _loadUserPhotos(String skorUserId) async {
+    print('🔍 _loadUserPhotos called with skorUserId: "$skorUserId"');
+
+    setState(() {
+      _isLoadingPhotos = true;
+      _photoError = null;
+    });
+
+    try {
+      // First check if photos exist locally
+      print('🔍 Checking local photos for userId: $skorUserId');
+      final localPaths = await _photoService.getLocalPhotoPaths(skorUserId);
+      print('🔍 Local paths result: $localPaths');
+
+      bool hasLocalPhotos =
+          localPaths['ktp'] != null || localPaths['selfie'] != null;
+
+      if (hasLocalPhotos) {
+        // Use local photos
+        print('✅ Using local photos');
+        setState(() {
+          _photoPaths = localPaths;
+          _isLoadingPhotos = false;
+        });
+      } else {
+        // Fetch from API
+        print('🔍 No local photos found, fetching from API...');
+        final fetchedPaths = await _photoService.fetchUserPhotos(skorUserId);
+        print('✅ API fetch complete, result: $fetchedPaths');
+
+        setState(() {
+          _photoPaths = fetchedPaths;
+          _isLoadingPhotos = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error in _loadUserPhotos: $e');
+      setState(() {
+        _photoError = e.toString();
+        _isLoadingPhotos = false;
+      });
+
+      // Show error but don't block UI
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not load photos: ${e.toString()}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -84,6 +167,11 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                 widget.client.id,
                 skorUserId: skorUserId,
               );
+
+          // Load user photos if skorUserId is available
+          if (skorUserId != null && skorUserId.isNotEmpty) {
+            _loadUserPhotos(skorUserId);
+          }
         } catch (e) {
           debugPrint('Error reinitializing ContactabilityController: $e');
           // Initialize with empty skorUserId if there's an error
@@ -223,8 +311,12 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                     _iconDetailRow(Icons.fingerprint, 'Skor User ID',
                         widget.client.skorUserId!),
                   _iconDetailRow(Icons.person, 'Full Name', widget.client.name),
-                  _iconDetailRow(Icons.phone, 'Mobile',
-                      AppUtils.StringUtils.formatPhone(widget.client.phone)),
+                  _iconDetailRowWithActions(
+                    Icons.phone,
+                    'Mobile',
+                    AppUtils.StringUtils.formatPhone(widget.client.phone),
+                    phone: widget.client.phone,
+                  ),
                   if (widget.client.email != null &&
                       widget.client.email!.isNotEmpty)
                     _iconDetailRow(Icons.email, 'Email', widget.client.email!),
@@ -239,6 +331,12 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
               ),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Photos Section (KTP and Selfie)
+          if (widget.client.skorUserId != null &&
+              widget.client.skorUserId!.isNotEmpty)
+            _buildPhotosSection(),
           const SizedBox(height: 16),
 
           // Contact & Emergency Information
@@ -271,9 +369,7 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     List<Widget> contactRows = [];
 
     // Basic contact info
-    if (_hasValue(clientData?['Mobile']))
-      contactRows.add(_iconDetailRow(
-          Icons.phone, 'Mobile', _safeStringValue(clientData!['Mobile'])));
+    // Skip Mobile field here since it's already shown in Basic Information
     if (_hasValue(clientData?['Home_Phone']))
       contactRows.add(_iconDetailRow(Icons.home, 'Home Phone',
           _safeStringValue(clientData!['Home_Phone'])));
@@ -313,8 +409,6 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     // If no contact data from API, show basic info
     if (contactRows.isEmpty) {
       contactRows = [
-        _iconDetailRow(Icons.phone, 'Mobile',
-            AppUtils.StringUtils.formatPhone(widget.client.phone)),
         if (widget.client.email != null && widget.client.email!.isNotEmpty)
           _iconDetailRow(Icons.email, 'Email', widget.client.email!),
       ];
@@ -561,6 +655,207 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPhotosSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Photos',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                if (_isLoadingPhotos)
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 12),
+                        Text('Loading photos...'),
+                      ],
+                    ),
+                  ),
+                if (!_isLoadingPhotos) ...[
+                  // KTP Photo
+                  _buildPhotoRow(
+                    'KTP Photo',
+                    _photoPaths['ktp'],
+                    Icons.credit_card,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Selfie Photo
+                  _buildPhotoRow(
+                    'Selfie Photo',
+                    _photoPaths['selfie'],
+                    Icons.face,
+                    height: 130, // Increased height for selfie
+                  ),
+                ],
+                if (_photoError != null && !_isLoadingPhotos)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.warning, color: Colors.orange),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Photos could not be loaded',
+                            style: TextStyle(color: Colors.orange[700]),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            final skorUserId = widget.client.skorUserId;
+                            if (skorUserId != null && skorUserId.isNotEmpty) {
+                              _loadUserPhotos(skorUserId);
+                            }
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPhotoRow(String label, String? photoPath, IconData icon,
+      {double height = 100}) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.blueAccent, size: 20),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 120,
+          child: Text(
+            '$label:',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded(
+          child: photoPath != null
+              ? GestureDetector(
+                  onTap: () => _showPhotoDialog(photoPath, label),
+                  child: Container(
+                    height: height, // Use dynamic height
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[300]!),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(photoPath),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                              child: Icon(Icons.error, color: Colors.red),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                )
+              : Container(
+                  height: height, // Use dynamic height
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    border: Border.all(color: Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'No photo available',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  void _showPhotoDialog(String photoPath, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              child: Image.file(
+                File(photoPath),
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, color: Colors.white, size: 48),
+                        SizedBox(height: 16),
+                        Text(
+                          'Could not load image',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              top: 10,
+              left: 10,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  title,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -827,6 +1122,65 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     );
   }
 
+  Widget _iconDetailRowWithActions(IconData icon, String label, String value,
+      {String? phone}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.blueAccent, size: 20),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
+          ),
+          if (phone != null) ...[
+            const SizedBox(width: 8),
+            // WhatsApp icon
+            GestureDetector(
+              onTap: () => _openWhatsApp(phone),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.chat,
+                  size: 16,
+                  color: Colors.green[600],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Call icon
+            GestureDetector(
+              onTap: () => _makePhoneCall(phone),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.call,
+                  size: 16,
+                  color: Colors.blue[600],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   void _showContactabilityOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -959,5 +1313,71 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
         ),
       ),
     );
+  }
+
+  void _openWhatsApp(String phone) async {
+    // Format phone for WhatsApp (remove leading 0, add 62)
+    String formattedPhone = phone.replaceAll(RegExp(r'[^\d]'), '');
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = '62${formattedPhone.substring(1)}';
+    } else if (!formattedPhone.startsWith('62')) {
+      formattedPhone = '62$formattedPhone';
+    }
+
+    final url = 'https://wa.me/$formattedPhone';
+
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open WhatsApp'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening WhatsApp: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _makePhoneCall(String phone) async {
+    final url = 'tel:$phone';
+
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not make phone call'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error making phone call: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

@@ -59,6 +59,19 @@ class ContactabilityDetailsScreen extends StatefulWidget {
 class _ContactabilityDetailsScreenState
     extends State<ContactabilityDetailsScreen> {
   @override
+  void initState() {
+    super.initState();
+    // Debug: Print all rawData fields to see what's available
+    print('=== ContactabilityDetailsScreen Debug ===');
+    print('All rawData fields:');
+    widget.contactability.rawData.forEach((key, value) {
+      print('  $key: $value');
+    });
+    print('Action Location value: ${_getActionLocation()}');
+    print('=========================================');
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -381,6 +394,20 @@ class _ContactabilityDetailsScreenState
                   'Result',
                   widget.contactability.resultDisplayName,
                 ),
+                // Person Contacted
+                if (_hasValue(_getPersonContacted()))
+                  _buildInfoRow(
+                    Icons.person_outline,
+                    'Person Contacted',
+                    _getPersonContacted(),
+                  ),
+                // Action Location
+                if (_hasValue(_getActionLocation()))
+                  _buildInfoRow(
+                    Icons.location_on_outlined,
+                    _getActionLocationLabel(),
+                    _getActionLocation(),
+                  ),
                 if (widget.contactability.notes != null &&
                     widget.contactability.notes!.isNotEmpty)
                   _buildInfoRow(
@@ -710,6 +737,22 @@ class _ContactabilityDetailsScreenState
                     Icons.email,
                     'Email',
                     widget.contactability.rawData['Email'].toString(),
+                  ),
+
+                // New contact information (if provided during contactability)
+                if (_getNewPhoneNumber().isNotEmpty)
+                  _buildInfoRow(
+                    Icons.phone_android,
+                    'New Phone Number',
+                    _getNewPhoneNumber(),
+                    iconColor: Colors.green,
+                  ),
+                if (_getNewAddress().isNotEmpty)
+                  _buildInfoRow(
+                    Icons.home,
+                    'New Address',
+                    _getNewAddress(),
+                    iconColor: Colors.green,
                   ),
 
                 // Other information
@@ -1053,6 +1096,81 @@ class _ContactabilityDetailsScreenState
     }
     if (_hasValue(rawData['Mobile_Number'])) {
       return rawData['Mobile_Number'].toString();
+    }
+
+    return '';
+  }
+
+  String _getPersonContacted() {
+    // Try to get person contacted from various possible fields in rawData
+    final rawData = widget.contactability.rawData;
+
+    // Check person contacted fields
+    if (_hasValue(rawData['Person_Contacted'])) {
+      return rawData['Person_Contacted'].toString();
+    }
+    if (_hasValue(rawData['PersonContacted'])) {
+      return rawData['PersonContacted'].toString();
+    }
+    if (_hasValue(rawData['Contact_Person'])) {
+      return rawData['Contact_Person'].toString();
+    }
+
+    return '';
+  }
+
+  String _getActionLocation() {
+    // Try to get action location from various possible fields in rawData
+    final rawData = widget.contactability.rawData;
+
+    // Primary field: Call_Done_to (this is what Action_Location from form gets saved as)
+    if (_hasValue(rawData['Call_Done_to'])) {
+      return rawData['Call_Done_to'].toString();
+    }
+    // Check other possible action location fields
+    if (_hasValue(rawData['Action_Location'])) {
+      return rawData['Action_Location'].toString();
+    }
+
+    return '';
+  }
+
+  String _getActionLocationLabel() {
+    // Always return "Action Location" to match the form field name
+    return 'Action Location';
+  }
+
+  String _getNewPhoneNumber() {
+    // Try to get new phone number from various possible fields in rawData
+    final rawData = widget.contactability.rawData;
+
+    // Check new phone number fields
+    if (_hasValue(rawData['New_Phone_Number'])) {
+      return rawData['New_Phone_Number'].toString();
+    }
+    if (_hasValue(rawData['NewPhoneNumber'])) {
+      return rawData['NewPhoneNumber'].toString();
+    }
+    if (_hasValue(rawData['Updated_Phone'])) {
+      return rawData['Updated_Phone'].toString();
+    }
+
+    return '';
+  }
+
+  String _getNewAddress() {
+    // Try to get new address from various possible fields in rawData
+    final rawData = widget.contactability.rawData;
+
+    // Check new address fields
+    if (_hasValue(rawData['New_Address'])) {
+      return rawData['New_Address'].toString();
+    }
+    if (_hasValue(rawData['NewAddress'])) {
+      return rawData['NewAddress'].toString();
+    }
+    if (_hasValue(rawData['Updated_Address'])) {
+      return rawData['Updated_Address'].toString();
     }
 
     return '';

@@ -5,16 +5,51 @@ import '../models/operational_area.dart';
 class OperationalAreaService {
   // List of operational areas with their corresponding file names
   static const List<Map<String, String>> _operationalAreas = [
-    {'name': 'JAKARTA PUSAT', 'province': 'DKI JAKARTA', 'file': 'jakarta pusat.json'},
-    {'name': 'JAKARTA BARAT', 'province': 'DKI JAKARTA', 'file': 'jakarta barat.json'},
-    {'name': 'JAKARTA SELATAN', 'province': 'DKI JAKARTA', 'file': 'jakarta selatan.json'},
-    {'name': 'JAKARTA TIMUR', 'province': 'DKI JAKARTA', 'file': 'jakarta timur.json'},
-    {'name': 'JAKARTA UTARA', 'province': 'DKI JAKARTA', 'file': 'jakarta utara.json'},
+    {
+      'name': 'JAKARTA PUSAT',
+      'province': 'DKI JAKARTA',
+      'file': 'jakarta pusat.json'
+    },
+    {
+      'name': 'JAKARTA BARAT',
+      'province': 'DKI JAKARTA',
+      'file': 'jakarta barat.json'
+    },
+    {
+      'name': 'JAKARTA SELATAN',
+      'province': 'DKI JAKARTA',
+      'file': 'jakarta selatan.json'
+    },
+    {
+      'name': 'JAKARTA TIMUR',
+      'province': 'DKI JAKARTA',
+      'file': 'jakarta timur.json'
+    },
+    {
+      'name': 'JAKARTA UTARA',
+      'province': 'DKI JAKARTA',
+      'file': 'jakarta utara.json'
+    },
     {'name': 'TANGERANG', 'province': 'BANTEN', 'file': 'tangerang.json'},
-    {'name': 'TANGERANG SELATAN', 'province': 'BANTEN', 'file': 'tangerang selatan.json'},
+    {
+      'name': 'TANGERANG SELATAN',
+      'province': 'BANTEN',
+      'file': 'tangerang selatan.json'
+    },
     {'name': 'BOGOR', 'province': 'JAWA BARAT', 'file': 'bogor.json'},
     {'name': 'DEPOK', 'province': 'JAWA BARAT', 'file': 'depok.json'},
     {'name': 'BEKASI', 'province': 'JAWA BARAT', 'file': 'bekasi.json'},
+    {
+      'name': 'KABUPATEN BEKASI',
+      'province': 'JAWA BARAT',
+      'file': 'kab-bekasi.json'
+    },
+    {
+      'name': 'KABUPATEN BOGOR',
+      'province': 'JAWA BARAT',
+      'file': 'kab-bogor.json'
+    },
+    {'name': 'KARAWANG', 'province': 'JAWA BARAT', 'file': 'karawang.json'},
     {'name': 'SURABAYA', 'province': 'JAWA TIMUR', 'file': 'surabaya.json'},
     {'name': 'GRESIK', 'province': 'JAWA TIMUR', 'file': 'gresik.json'},
     {'name': 'SIDOARJO', 'province': 'JAWA TIMUR', 'file': 'sidoarjo.json'},
@@ -23,7 +58,11 @@ class OperationalAreaService {
     {'name': 'MALANG', 'province': 'JAWA TIMUR', 'file': 'malang.json'},
     {'name': 'BATU', 'province': 'JAWA TIMUR', 'file': 'batu.json'},
     {'name': 'DENPASAR', 'province': 'BALI', 'file': 'denpasar.json'},
-    {'name': 'MAKASSAR', 'province': 'SULAWESI SELATAN', 'file': 'makassar.json'},
+    {
+      'name': 'MAKASSAR',
+      'province': 'SULAWESI SELATAN',
+      'file': 'makassar.json'
+    },
   ];
 
   static Future<List<OperationalArea>> fetchOperationalAreas() async {
@@ -32,10 +71,7 @@ class OperationalAreaService {
     for (final areaData in _operationalAreas) {
       try {
         final area = await _loadAreaFromFile(
-          areaData['name']!, 
-          areaData['province']!, 
-          areaData['file']!
-        );
+            areaData['name']!, areaData['province']!, areaData['file']!);
         if (area != null) {
           areas.add(area);
           print('✅ Loaded boundary for ${area.fullName}');
@@ -53,7 +89,8 @@ class OperationalAreaService {
       String name, String province, String fileName) async {
     try {
       // Load JSON file from assets
-      final String jsonString = await rootBundle.loadString('assets/geo/$fileName');
+      final String jsonString =
+          await rootBundle.loadString('assets/geo/$fileName');
       final List<dynamic> data = json.decode(jsonString);
 
       if (data.isNotEmpty) {

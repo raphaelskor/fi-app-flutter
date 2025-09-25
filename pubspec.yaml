@@ -23,6 +23,9 @@ dependencies:
   shared_preferences: ^2.2.2 # Added for storing user data
   flutter_map: ^6.1.0 # Added for OpenStreetMap integration
   latlong2: ^0.9.1 # Added for latitude/longitude handling
+  archive: ^3.4.10 # Added for ZIP file extraction
+  path_provider: ^2.1.2 # Added for file path management
+  path: ^1.8.3 # Added for path utilities
 
 dev_dependencies:
   flutter_test:

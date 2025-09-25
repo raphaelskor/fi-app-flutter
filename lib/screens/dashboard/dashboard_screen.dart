@@ -193,6 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         label: const Text('Client Locations'),
         tooltip: 'View All Client Locations',
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 

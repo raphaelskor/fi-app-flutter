@@ -655,9 +655,45 @@ class _ListClientTabState extends State<ListClientTab> {
           children: [
             Icon(Icons.phone, size: 16, color: Colors.grey[600]),
             const SizedBox(width: 5),
-            _buildHighlightedText(
-              _formatPhoneClean(client.phone),
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+            Expanded(
+              child: _buildHighlightedText(
+                _formatPhoneClean(client.phone),
+                style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // WhatsApp icon
+            GestureDetector(
+              onTap: () => _openWhatsApp(client.phone),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.chat,
+                  size: 16,
+                  color: Colors.green[600],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Call icon
+            GestureDetector(
+              onTap: () => _makePhoneCall(client.phone),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.call,
+                  size: 16,
+                  color: Colors.blue[600],
+                ),
+              ),
             ),
           ],
         ),
@@ -752,6 +788,72 @@ class _ListClientTabState extends State<ListClientTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error opening Google Maps: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _openWhatsApp(String phone) async {
+    // Format phone for WhatsApp (remove leading 0, add 62)
+    String formattedPhone = phone.replaceAll(RegExp(r'[^\d]'), '');
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = '62${formattedPhone.substring(1)}';
+    } else if (!formattedPhone.startsWith('62')) {
+      formattedPhone = '62$formattedPhone';
+    }
+
+    final url = 'https://wa.me/$formattedPhone';
+
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open WhatsApp'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening WhatsApp: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _makePhoneCall(String phone) async {
+    final url = 'tel:$phone';
+
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not make phone call'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error making phone call: $e'),
             backgroundColor: Colors.red,
           ),
         );
