@@ -533,6 +533,19 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
   Widget _buildFinancialSection() {
     final Map<String, dynamic>? clientData = _getClientApiData();
 
+    // Debug: Log financial data availability
+    debugPrint('🔍 _buildFinancialSection - Debug financial data:');
+    if (clientData != null) {
+      debugPrint(
+          '   - Total_OS_Yesterday1: ${clientData['Total_OS_Yesterday1']}');
+      debugPrint(
+          '   - Type: ${clientData['Total_OS_Yesterday1']?.runtimeType}');
+      debugPrint(
+          '   - _hasValue result: ${_hasValue(clientData['Total_OS_Yesterday1'])}');
+    } else {
+      debugPrint('   - clientData is NULL');
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -546,6 +559,11 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
+                // Outstanding Amount
+                if (_hasValue(clientData?['Total_OS_Yesterday1']))
+                  _iconDetailRow(Icons.account_balance, 'Total Outstanding',
+                      _formatCurrency(clientData!['Total_OS_Yesterday1'])),
+
                 // Loan Amounts
                 if (_hasValue(clientData?['Last_Statement_MAD']))
                   _iconDetailRow(Icons.attach_money, 'Last Statement MAD',
@@ -569,6 +587,9 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                 if (_hasValue(clientData?['Repayment_Amount']))
                   _iconDetailRow(Icons.event, 'Repayment Amount',
                       _formatCurrency(clientData!['Repayment_Amount'])),
+                if (_hasValue(clientData?['Buy_Back_Status']))
+                  _iconDetailRow(Icons.shopping_cart, 'BuyBack Status',
+                      _safeStringValue(clientData!['Buy_Back_Status'])),
 
                 // DPD Information
                 if (_hasValue(clientData?['Days_Past_Due']))

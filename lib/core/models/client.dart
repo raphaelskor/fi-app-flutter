@@ -108,6 +108,15 @@ class Client {
       print('   - user_ID field: "${json['user_ID']}"');
     }
     print('   - Client Name: "$clientName"');
+
+    // Debug Total Outstanding field specifically
+    if (json['Total_OS_Yesterday1'] != null &&
+        json['Total_OS_Yesterday1'].toString() != 'null') {
+      print('   ✅ Total_OS_Yesterday1: "${json['Total_OS_Yesterday1']}"');
+    } else {
+      print('   ❌ Total_OS_Yesterday1: NOT FOUND or NULL');
+    }
+
     print('   - Available keys: ${json.keys.toList()}');
 
     return Client(

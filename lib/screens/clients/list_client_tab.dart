@@ -28,6 +28,22 @@ class _ListClientTabState extends State<ListClientTab> {
   String _searchQuery = '';
   Timer? _debounceTimer;
 
+  // Filter and sort state
+  String? _selectedCity;
+  String? _sortBy;
+  bool _sortAscending = true;
+  bool _isFilterExpanded = false; // Add this for hide/unhide functionality
+
+  // Available sort options
+  final List<Map<String, String>> _sortOptions = [
+    {'key': 'Last_Statement_MAD', 'label': 'MAD'},
+    {'key': 'Last_Statement_TAD', 'label': 'TAD'},
+    {'key': 'Total_OS_Yesterday1', 'label': 'Total OS'},
+    {'key': 'Last_Payment_Amount', 'label': 'Last Payment Amount'},
+    {'key': 'Last_Payment_Date', 'label': 'Last Payment Date'},
+    {'key': 'Buy_Back_Status', 'label': 'BuyBack Status'},
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -123,6 +139,102 @@ class _ListClientTabState extends State<ListClientTab> {
     return cleaned;
   }
 
+  /// Get distinct cities from all client data
+  List<String> _getDistinctCities(List<Client> clients) {
+    final Set<String> cities = {};
+
+    for (final client in clients) {
+      final caCity = client.rawApiData?['CA_City']?.toString();
+      if (caCity != null &&
+          caCity.isNotEmpty &&
+          caCity.toLowerCase() != 'null' &&
+          caCity.toLowerCase() != 'na') {
+        cities.add(caCity.trim());
+      }
+    }
+
+    final sortedCities = cities.toList()..sort();
+    return sortedCities;
+  }
+
+  /// Apply filtering and sorting to client list
+  List<Client> _getFilteredAndSortedClients(List<Client> clients) {
+    List<Client> filtered = clients;
+
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((client) {
+        final nameMatch = client.name.toLowerCase().contains(_searchQuery);
+        final phoneMatch = client.phone.contains(_searchQuery);
+        final cleanPhoneMatch =
+            _formatPhoneClean(client.phone).contains(_searchQuery);
+        return nameMatch || phoneMatch || cleanPhoneMatch;
+      }).toList();
+    }
+
+    // Apply city filter
+    if (_selectedCity != null && _selectedCity!.isNotEmpty) {
+      filtered = filtered.where((client) {
+        final caCity = client.rawApiData?['CA_City']?.toString();
+        return caCity != null && caCity.trim() == _selectedCity;
+      }).toList();
+    }
+
+    // Apply sorting
+    if (_sortBy != null && _sortBy!.isNotEmpty) {
+      filtered.sort((a, b) {
+        final aValue = a.rawApiData?[_sortBy!];
+        final bValue = b.rawApiData?[_sortBy!];
+
+        // Handle null values
+        if (aValue == null && bValue == null) return 0;
+        if (aValue == null) return _sortAscending ? 1 : -1;
+        if (bValue == null) return _sortAscending ? -1 : 1;
+
+        int comparison;
+
+        // Special handling for date fields
+        if (_sortBy == 'Last_Payment_Date') {
+          try {
+            final aDate = DateTime.tryParse(aValue.toString());
+            final bDate = DateTime.tryParse(bValue.toString());
+
+            if (aDate == null && bDate == null) return 0;
+            if (aDate == null) return _sortAscending ? 1 : -1;
+            if (bDate == null) return _sortAscending ? -1 : 1;
+
+            comparison = aDate.compareTo(bDate);
+          } catch (e) {
+            comparison = aValue.toString().compareTo(bValue.toString());
+          }
+        } else if (_sortBy == 'Buy_Back_Status') {
+          // Special handling for Buy_Back_Status - string comparison
+          comparison = aValue.toString().compareTo(bValue.toString());
+        } else {
+          // Numeric fields
+          try {
+            final aNum = double.tryParse(
+                aValue.toString().replaceAll(RegExp(r'[^\d.-]'), ''));
+            final bNum = double.tryParse(
+                bValue.toString().replaceAll(RegExp(r'[^\d.-]'), ''));
+
+            if (aNum == null && bNum == null) return 0;
+            if (aNum == null) return _sortAscending ? 1 : -1;
+            if (bNum == null) return _sortAscending ? -1 : 1;
+
+            comparison = aNum.compareTo(bNum);
+          } catch (e) {
+            comparison = aValue.toString().compareTo(bValue.toString());
+          }
+        }
+
+        return _sortAscending ? comparison : -comparison;
+      });
+    }
+
+    return filtered;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<ClientController>(
@@ -152,6 +264,8 @@ class _ListClientTabState extends State<ListClientTab> {
                       _buildHeader(),
                       const SizedBox(height: 16),
                       _buildSearchBar(),
+                      const SizedBox(height: 16),
+                      _buildFilterAndSortControls(clientController),
                       const SizedBox(height: 20),
                       _buildMainContent(clientController),
                     ],
@@ -315,6 +429,319 @@ class _ListClientTabState extends State<ListClientTab> {
     );
   }
 
+  Widget _buildFilterAndSortControls(ClientController controller) {
+    final allClients = controller.todaysClients;
+    final distinctCities = _getDistinctCities(allClients);
+
+    // Check if any filters are active
+    final hasActiveFilters = _selectedCity != null || _sortBy != null;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header with toggle button
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isFilterExpanded = !_isFilterExpanded;
+              });
+            },
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.filter_list, size: 20, color: Colors.grey[700]),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Filter & Sort',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        // Show active filters summary when collapsed
+                        if (!_isFilterExpanded && hasActiveFilters) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            _getFilterSummary(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue[600],
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  // Active filter indicator
+                  if (hasActiveFilters)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[100],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        _getActiveFilterCount().toString(),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  AnimatedRotation(
+                    turns: _isFilterExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.expand_more,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Expandable content
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            height: _isFilterExpanded ? null : 0,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _isFilterExpanded ? 1.0 : 0.0,
+              child: _isFilterExpanded
+                  ? Container(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Column(
+                        children: [
+                          const Divider(height: 1),
+                          const SizedBox(height: 16),
+
+                          // City Filter
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Filter by City',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                            color: Colors.grey[300]!),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value: _selectedCity,
+                                          hint: const Text('All Cities'),
+                                          isExpanded: true,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12),
+                                          items: [
+                                            const DropdownMenuItem<String>(
+                                              value: null,
+                                              child: Text('All Cities'),
+                                            ),
+                                            ...distinctCities.map((city) =>
+                                                DropdownMenuItem<String>(
+                                                  value: city,
+                                                  child: Text(city),
+                                                )),
+                                          ],
+                                          onChanged: (String? value) {
+                                            setState(() {
+                                              _selectedCity = value;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+
+                              // Sort Controls
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Sort by',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              border: Border.all(
+                                                  color: Colors.grey[300]!),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: DropdownButtonHideUnderline(
+                                              child: DropdownButton<String>(
+                                                value: _sortBy,
+                                                hint: const Text('None'),
+                                                isExpanded: true,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 12),
+                                                items: [
+                                                  const DropdownMenuItem<
+                                                      String>(
+                                                    value: null,
+                                                    child: Text('None'),
+                                                  ),
+                                                  ..._sortOptions.map(
+                                                      (option) =>
+                                                          DropdownMenuItem<
+                                                              String>(
+                                                            value:
+                                                                option['key'],
+                                                            child: Text(option[
+                                                                'label']!),
+                                                          )),
+                                                ],
+                                                onChanged: (String? value) {
+                                                  setState(() {
+                                                    _sortBy = value;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Sort order toggle
+                                        if (_sortBy != null)
+                                          GestureDetector(
+                                            onTap: () {
+                                              setState(() {
+                                                _sortAscending =
+                                                    !_sortAscending;
+                                              });
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue[50],
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                    color: Colors.blue[200]!),
+                                              ),
+                                              child: Icon(
+                                                _sortAscending
+                                                    ? Icons.arrow_upward
+                                                    : Icons.arrow_downward,
+                                                size: 20,
+                                                color: Colors.blue[700],
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // Clear filters button
+                          if (hasActiveFilters) ...[
+                            const SizedBox(height: 12),
+                            Center(
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedCity = null;
+                                    _sortBy = null;
+                                    _sortAscending = true;
+                                  });
+                                },
+                                icon: const Icon(Icons.clear, size: 18),
+                                label: const Text('Clear Filters'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get summary of active filters for collapsed view
+  String _getFilterSummary() {
+    List<String> filters = [];
+
+    if (_selectedCity != null) {
+      filters.add('City: $_selectedCity');
+    }
+    if (_sortBy != null) {
+      final sortLabel = _sortOptions
+          .firstWhere((option) => option['key'] == _sortBy)['label'];
+      filters.add('Sort: $sortLabel ${_sortAscending ? '↑' : '↓'}');
+    }
+
+    return filters.join(' • ');
+  }
+
+  /// Get count of active filters
+  int _getActiveFilterCount() {
+    int count = 0;
+    if (_selectedCity != null) count++;
+    if (_sortBy != null) count++;
+    return count;
+  }
+
   Widget _buildMainContent(ClientController controller) {
     switch (controller.loadingState) {
       case ClientLoadingState.initial:
@@ -362,13 +789,14 @@ class _ListClientTabState extends State<ListClientTab> {
 
       case ClientLoadingState.loaded:
         final allClients = controller.todaysClients;
-        final filteredClients = _getFilteredClients(allClients);
+        final filteredClients = _getFilteredAndSortedClients(allClients);
 
         if (allClients.isEmpty) {
           return _buildEmptyState();
         }
 
-        if (filteredClients.isEmpty && _searchQuery.isNotEmpty) {
+        if (filteredClients.isEmpty &&
+            (_searchQuery.isNotEmpty || _selectedCity != null)) {
           return _buildNoSearchResultsState();
         }
 
@@ -383,22 +811,22 @@ class _ListClientTabState extends State<ListClientTab> {
     }
   }
 
-  List<Client> _getFilteredClients(List<Client> clients) {
-    if (_searchQuery.isEmpty) {
-      return clients;
+  Widget _buildResultsHeader(int filteredCount, int totalCount) {
+    List<String> filterInfo = [];
+
+    if (_searchQuery.isNotEmpty) {
+      filterInfo.add('search: "$_searchQuery"');
+    }
+    if (_selectedCity != null) {
+      filterInfo.add('city: "$_selectedCity"');
+    }
+    if (_sortBy != null) {
+      final sortLabel = _sortOptions
+          .firstWhere((option) => option['key'] == _sortBy)['label'];
+      filterInfo.add('sorted by: $sortLabel ${_sortAscending ? '↑' : '↓'}');
     }
 
-    return clients.where((client) {
-      final nameMatch = client.name.toLowerCase().contains(_searchQuery);
-      final phoneMatch = client.phone.contains(_searchQuery);
-      final cleanPhoneMatch =
-          _formatPhoneClean(client.phone).contains(_searchQuery);
-      return nameMatch || phoneMatch || cleanPhoneMatch;
-    }).toList();
-  }
-
-  Widget _buildResultsHeader(int filteredCount, int totalCount) {
-    if (_searchQuery.isEmpty) {
+    if (filterInfo.isEmpty) {
       return Text(
         'Showing $totalCount clients',
         style: TextStyle(
@@ -408,33 +836,52 @@ class _ListClientTabState extends State<ListClientTab> {
         ),
       );
     } else {
-      return RichText(
-        text: TextSpan(
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey[600],
-          ),
-          children: [
-            TextSpan(
-              text: 'Found ',
-            ),
-            TextSpan(
-              text: '$filteredCount',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          RichText(
+            text: TextSpan(
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
               ),
+              children: [
+                const TextSpan(text: 'Found '),
+                TextSpan(
+                  text: '$filteredCount',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+                TextSpan(text: ' of $totalCount clients'),
+              ],
             ),
-            TextSpan(
-              text: ' of $totalCount clients',
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Filters: ${filterInfo.join(', ')}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[500],
+              fontStyle: FontStyle.italic,
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
   }
 
   Widget _buildNoSearchResultsState() {
+    List<String> activeFilters = [];
+
+    if (_searchQuery.isNotEmpty) {
+      activeFilters.add('search term');
+    }
+    if (_selectedCity != null) {
+      activeFilters.add('city filter');
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -455,7 +902,7 @@ class _ListClientTabState extends State<ListClientTab> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Try searching with a different name or phone number',
+            'Try adjusting your ${activeFilters.join(' or ')}',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[500],
@@ -466,10 +913,15 @@ class _ListClientTabState extends State<ListClientTab> {
           ElevatedButton.icon(
             onPressed: () {
               _searchController.clear();
-              _filterClients('');
+              setState(() {
+                _searchQuery = '';
+                _selectedCity = null;
+                _sortBy = null;
+                _sortAscending = true;
+              });
             },
             icon: const Icon(Icons.clear),
-            label: const Text('Clear Search'),
+            label: const Text('Clear All Filters'),
           ),
         ],
       ),
@@ -697,6 +1149,34 @@ class _ListClientTabState extends State<ListClientTab> {
             ),
           ],
         ),
+
+        // Show sorted field value if sorting is active
+        if (_sortBy != null && client.rawApiData?[_sortBy!] != null) ...[
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              Icon(Icons.sort, size: 16, color: Colors.blue[600]),
+              const SizedBox(width: 5),
+              Text(
+                '${_sortOptions.firstWhere((option) => option['key'] == _sortBy)['label']}: ',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue[600],
+                    fontWeight: FontWeight.w500),
+              ),
+              Expanded(
+                child: Text(
+                  _formatSortValue(client.rawApiData![_sortBy!], _sortBy!),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue[700],
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ],
+
         if (client.distance != null) ...[
           const SizedBox(height: 5),
           Row(
@@ -712,6 +1192,48 @@ class _ListClientTabState extends State<ListClientTab> {
         ],
       ],
     );
+  }
+
+  /// Format sort value for display
+  String _formatSortValue(dynamic value, String sortBy) {
+    if (value == null) return 'N/A';
+
+    // Format currency fields
+    if ([
+      'Last_Statement_MAD',
+      'Last_Statement_TAD',
+      'Total_OS_Yesterday1',
+      'Last_Payment_Amount'
+    ].contains(sortBy)) {
+      try {
+        final numValue =
+            double.tryParse(value.toString().replaceAll(RegExp(r'[^\d.]'), ''));
+        if (numValue != null) {
+          return 'Rp ${numValue.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+        }
+      } catch (e) {
+        // Fall through to default formatting
+      }
+    }
+
+    // Format date field
+    if (sortBy == 'Last_Payment_Date') {
+      try {
+        final date = DateTime.tryParse(value.toString());
+        if (date != null) {
+          return '${date.day}/${date.month}/${date.year}';
+        }
+      } catch (e) {
+        // Fall through to default formatting
+      }
+    }
+
+    // Format Buy_Back_Status field
+    if (sortBy == 'Buy_Back_Status') {
+      return value.toString().toUpperCase();
+    }
+
+    return value.toString();
   }
 
   Widget _buildActionButtons(Client client) {

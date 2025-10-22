@@ -333,7 +333,23 @@ class ApiService {
                     print('   - User_ID: ${clientData['User_ID']}');
                     print('   - Skor_User_ID: ${clientData['Skor_User_ID']}');
                     print('   - id: ${clientData['id']}');
+                    print(
+                        '   - Total_OS_Yesterday1: ${clientData['Total_OS_Yesterday1']}');
                     print('   - Available keys: ${clientData.keys.toList()}');
+
+                    // Debug financial fields specifically
+                    final financialFields = [
+                      'Total_OS_Yesterday1',
+                      'Last_Statement_MAD',
+                      'Last_Statement_TAD',
+                      'Last_Payment_Amount',
+                      'Days_Past_Due',
+                      'DPD_Bucket'
+                    ];
+                    print('📊 Financial fields in API response:');
+                    for (String field in financialFields) {
+                      print('   - $field: ${clientData[field]}');
+                    }
                   }
                 }
               }
