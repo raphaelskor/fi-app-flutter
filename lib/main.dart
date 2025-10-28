@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'dart:io';
 import 'package:field_investigator_app/screens/auth/login_screen.dart';
 import 'package:field_investigator_app/screens/main_screen.dart';
 import 'package:field_investigator_app/core/services/auth_service.dart';
@@ -22,7 +23,23 @@ void main() async {
     ),
   );
 
+  // Disable screenshot for Android and iOS
+  if (Platform.isAndroid || Platform.isIOS) {
+    await _disableScreenshot();
+  }
+
   runApp(MyApp());
+}
+
+// Method to disable screenshot on Android
+Future<void> _disableScreenshot() async {
+  try {
+    const platform = MethodChannel('com.skorcard.fiapp/screenshot');
+    await platform.invokeMethod('disableScreenshot');
+    debugPrint('✅ Screenshot disabled successfully');
+  } catch (e) {
+    debugPrint('❌ Failed to disable screenshot: $e');
+  }
 }
 
 class MyApp extends StatelessWidget {

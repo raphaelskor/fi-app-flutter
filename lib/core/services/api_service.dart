@@ -1148,6 +1148,107 @@ class ApiService {
     }
   }
 
+  /// Fetch skip tracing data for a client
+  Future<List<Map<String, dynamic>>> fetchSkipTracingData(
+      String clientId) async {
+    try {
+      // Validate input
+      if (clientId.isEmpty || clientId.toLowerCase() == 'null') {
+        print('⚠️ Invalid clientId provided: $clientId');
+        return [];
+      }
+
+      print('🔄 Fetching skip tracing data for client: $clientId');
+
+      const String baseUrl =
+          'https://n8n.skorcard.app/webhook/fb6e465f-0e75-4b8c-8c51-f0831c4041f7';
+
+      // Prepare request body with client ID
+      final Map<String, dynamic> requestBody = {
+        'id': clientId,
+      };
+
+      print('🌐 Request URL: $baseUrl');
+      print('🔑 Client ID: $clientId');
+      print('📄 Request Body: $requestBody');
+
+      final response = await _client
+          .post(
+            Uri.parse(baseUrl),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: json.encode(requestBody),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      print('📊 Response Status: ${response.statusCode}');
+      print('📄 Response Body Length: ${response.body.length}');
+
+      if (response.statusCode == 200) {
+        try {
+          // Check if response body is empty or null
+          if (response.body.isEmpty || response.body.trim().isEmpty) {
+            print('⚠️ Empty response body from API');
+            return [];
+          }
+
+          final List<dynamic> responseList = json.decode(response.body);
+          print('✅ Successfully parsed JSON: ${responseList.runtimeType}');
+
+          // Extract skip tracing data from complex response structure
+          final List<Map<String, dynamic>> skipTracingList = [];
+
+          for (final item in responseList) {
+            if (item is Map<String, dynamic> && item['data'] != null) {
+              final List<dynamic> dataList = item['data'];
+              for (final skipTracingData in dataList) {
+                if (skipTracingData is Map<String, dynamic>) {
+                  skipTracingList.add(skipTracingData);
+                }
+              }
+            }
+          }
+
+          print('✅ Found ${skipTracingList.length} skip tracing records');
+          return skipTracingList;
+        } catch (jsonError) {
+          print('❌ JSON Parse Error: $jsonError');
+          print('📄 Raw response body: ${response.body}');
+          return [];
+        }
+      } else {
+        print('❌ HTTP Error: ${response.statusCode}');
+        print('📄 Error Body: ${response.body}');
+        throw NetworkException(
+          message:
+              'Failed to fetch skip tracing data from Skorcard API: ${response.statusCode}',
+          statusCode: response.statusCode,
+        );
+      }
+    } on SocketException catch (e) {
+      print('❌ Socket Exception: $e');
+      throw const NetworkException(
+        message: 'No internet connection',
+        statusCode: 0,
+      );
+    } on HttpException catch (e) {
+      print('❌ HTTP Exception: $e');
+      throw const NetworkException(
+        message: 'Network error occurred',
+        statusCode: 0,
+      );
+    } catch (e) {
+      print('❌ Unexpected Error: $e');
+      if (e is AppException) rethrow;
+      throw NetworkException(
+        message: 'Unexpected error: ${e.toString()}',
+        statusCode: 0,
+      );
+    }
+  }
+
   void dispose() {
     _client.close();
   }

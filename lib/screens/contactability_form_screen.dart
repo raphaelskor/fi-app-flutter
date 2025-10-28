@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -685,9 +686,12 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               decoration: const InputDecoration(
                 labelText: 'PTP Amount',
                 border: OutlineInputBorder(),
-                hintText: 'Enter amount',
+                hintText: 'Contoh: Rp 1.000.000',
               ),
               keyboardType: TextInputType.number,
+              inputFormatters: [
+                RupiahInputFormatter(),
+              ],
               validator: (value) {
                 if (_shouldShowPtpFields(
                         context.read<ContactabilityController>()) &&
@@ -1115,9 +1119,15 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
 
     controller.clearError();
 
+    // Extract numeric value from formatted PTP amount
+    String? ptpAmountValue;
+    if (_shouldShowPtpFields(controller) &&
+        _ptpAmountController.text.isNotEmpty) {
+      ptpAmountValue = extractNumericValue(_ptpAmountController.text);
+    }
+
     final success = await controller.submitContactability(
-      ptpAmount:
-          _shouldShowPtpFields(controller) ? _ptpAmountController.text : null,
+      ptpAmount: ptpAmountValue,
       ptpDate: _shouldShowPtpFields(controller) ? _selectedPtpDate : null,
     );
 
@@ -1316,4 +1326,41 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
       }
     }
   }
+}
+
+/// Custom TextInputFormatter for Indonesian Rupiah currency formatting
+class RupiahInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Remove all non-digit characters
+    String digitsOnly = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+
+    // If empty, return empty
+    if (digitsOnly.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+
+    // Format with thousand separators
+    final formatter = NumberFormat('#,###', 'id_ID');
+    final formatted = formatter.format(int.parse(digitsOnly));
+
+    // Add Rp prefix
+    final text = 'Rp $formatted';
+
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+}
+
+/// Helper function to extract numeric value from formatted Rupiah string
+String extractNumericValue(String formattedValue) {
+  return formattedValue.replaceAll(RegExp(r'[^\d]'), '');
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
@@ -1086,6 +1087,22 @@ class _ListClientTabState extends State<ListClientTab> {
             ),
             const SizedBox(width: 8),
             GestureDetector(
+              onTap: () => _copyToClipboard(client.address, 'Address'),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(
+                  Icons.copy,
+                  size: 16,
+                  color: Colors.blueGrey[600],
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            GestureDetector(
               onTap: () => _openGoogleMaps(client.address),
               child: Container(
                 padding: const EdgeInsets.all(4),
@@ -1284,6 +1301,20 @@ class _ListClientTabState extends State<ListClientTab> {
         ),
       ),
     );
+  }
+
+  void _copyToClipboard(String text, String label) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$label copied to clipboard'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _openGoogleMaps(String address) async {

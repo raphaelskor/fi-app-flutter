@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
@@ -11,6 +12,7 @@ import '../../widgets/common_widgets.dart';
 import '../contactability_form_screen.dart';
 import '../contactability/contactability_details_screen.dart';
 import 'client_location_history_screen.dart';
+import 'skip_tracing_screen.dart';
 
 class ClientDetailsScreen extends StatefulWidget {
   final Client client;
@@ -193,6 +195,11 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
         foregroundColor: Colors.white,
         actions: [
           IconButton(
+            icon: const Icon(Icons.phone_in_talk),
+            tooltip: 'Skip Tracing',
+            onPressed: () => _navigateToSkipTracing(),
+          ),
+          IconButton(
             icon: const Icon(Icons.location_history),
             tooltip: 'Location History',
             onPressed: () => _navigateToLocationHistory(),
@@ -320,7 +327,8 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                   if (widget.client.email != null &&
                       widget.client.email!.isNotEmpty)
                     _iconDetailRow(Icons.email, 'Email', widget.client.email!),
-                  _iconDetailRow(Icons.home, 'Address', widget.client.address),
+                  _iconDetailRow(Icons.home, 'Address', widget.client.address,
+                      isCopyable: true),
                   if (widget.client.distance != null)
                     _iconDetailRow(
                         Icons.near_me,
@@ -371,14 +379,26 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     // Basic contact info
     // Skip Mobile field here since it's already shown in Basic Information
     if (_hasValue(clientData?['Home_Phone']))
-      contactRows.add(_iconDetailRow(Icons.home, 'Home Phone',
-          _safeStringValue(clientData!['Home_Phone'])));
+      contactRows.add(_iconDetailRowWithActions(
+        Icons.home,
+        'Home Phone',
+        _safeStringValue(clientData!['Home_Phone']),
+        phone: _safeStringValue(clientData['Home_Phone']),
+      ));
     if (_hasValue(clientData?['Office_Phone']))
-      contactRows.add(_iconDetailRow(Icons.business, 'Office Phone',
-          _safeStringValue(clientData!['Office_Phone'])));
+      contactRows.add(_iconDetailRowWithActions(
+        Icons.business,
+        'Office Phone',
+        _safeStringValue(clientData!['Office_Phone']),
+        phone: _safeStringValue(clientData['Office_Phone']),
+      ));
     if (_hasValue(clientData?['Any_other_phone_No']))
-      contactRows.add(_iconDetailRow(Icons.phone_android, 'Other Phone',
-          _safeStringValue(clientData!['Any_other_phone_No'])));
+      contactRows.add(_iconDetailRowWithActions(
+        Icons.phone_android,
+        'Other Phone',
+        _safeStringValue(clientData!['Any_other_phone_No']),
+        phone: _safeStringValue(clientData['Any_other_phone_No']),
+      ));
     if (_hasValue(clientData?['Email']))
       contactRows.add(_iconDetailRow(
           Icons.email, 'Email', _safeStringValue(clientData!['Email'])));
@@ -388,8 +408,12 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
       contactRows.add(_iconDetailRow(Icons.contact_phone, 'Emergency Contact 1',
           _safeStringValue(clientData!['EC1_Name'])));
     if (_hasValue(clientData?['EC1_Phone']))
-      contactRows.add(_iconDetailRow(Icons.phone, 'EC1 Phone',
-          _safeStringValue(clientData!['EC1_Phone'])));
+      contactRows.add(_iconDetailRowWithActions(
+        Icons.phone,
+        'EC1 Phone',
+        _safeStringValue(clientData!['EC1_Phone']),
+        phone: _safeStringValue(clientData['EC1_Phone']),
+      ));
     if (_hasValue(clientData?['EC1_Relation']))
       contactRows.add(_iconDetailRow(Icons.people, 'EC1 Relation',
           _safeStringValue(clientData!['EC1_Relation'])));
@@ -397,8 +421,12 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
       contactRows.add(_iconDetailRow(Icons.contact_phone, 'Emergency Contact 2',
           _safeStringValue(clientData!['EC2_Name'])));
     if (_hasValue(clientData?['EC2_Phone']))
-      contactRows.add(_iconDetailRow(Icons.phone, 'EC2 Phone',
-          _safeStringValue(clientData!['EC2_Phone'])));
+      contactRows.add(_iconDetailRowWithActions(
+        Icons.phone,
+        'EC2 Phone',
+        _safeStringValue(clientData!['EC2_Phone']),
+        phone: _safeStringValue(clientData['EC2_Phone']),
+      ));
     if (_hasValue(clientData?['EC2_Relation']))
       contactRows.add(_iconDetailRow(Icons.people, 'EC2 Relation',
           _safeStringValue(clientData!['EC2_Relation'])));
@@ -480,48 +508,62 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                 // Current Address
                 if (_hasValue(clientData?['CA_Line_1']))
                   _iconDetailRow(Icons.home, 'Address Line 1',
-                      _safeStringValue(clientData!['CA_Line_1'])),
+                      _safeStringValue(clientData!['CA_Line_1']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['CA_Line_2']))
                   _iconDetailRow(Icons.home, 'Address Line 2',
-                      _safeStringValue(clientData!['CA_Line_2'])),
+                      _safeStringValue(clientData!['CA_Line_2']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['CA_City']))
                   _iconDetailRow(Icons.location_city, 'City',
-                      _safeStringValue(clientData!['CA_City'])),
+                      _safeStringValue(clientData!['CA_City']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['CA_District']))
                   _iconDetailRow(Icons.map, 'District',
-                      _safeStringValue(clientData!['CA_District'])),
+                      _safeStringValue(clientData!['CA_District']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['CA_Sub_District']))
                   _iconDetailRow(Icons.place, 'Sub District',
-                      _safeStringValue(clientData!['CA_Sub_District'])),
+                      _safeStringValue(clientData!['CA_Sub_District']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['CA_Province']))
                   _iconDetailRow(Icons.map_outlined, 'Province',
-                      _safeStringValue(clientData!['CA_Province'])),
+                      _safeStringValue(clientData!['CA_Province']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['CA_ZipCode']))
                   _iconDetailRow(Icons.markunread_mailbox, 'Zip Code',
-                      _safeStringValue(clientData!['CA_ZipCode'])),
+                      _safeStringValue(clientData!['CA_ZipCode']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['CA_RT_RW']))
                   _iconDetailRow(Icons.home_outlined, 'RT/RW',
-                      _safeStringValue(clientData!['CA_RT_RW'])),
+                      _safeStringValue(clientData!['CA_RT_RW']),
+                      isCopyable: true),
 
                 // KTP Address
                 if (_hasValue(clientData?['KTP_Address']))
                   _iconDetailRow(Icons.credit_card, 'KTP Address',
-                      _safeStringValue(clientData!['KTP_Address'])),
+                      _safeStringValue(clientData!['KTP_Address']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['KTP_City']))
                   _iconDetailRow(Icons.location_city, 'KTP City',
-                      _safeStringValue(clientData!['KTP_City'])),
+                      _safeStringValue(clientData!['KTP_City']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['KTP_District']))
                   _iconDetailRow(Icons.map, 'KTP District',
-                      _safeStringValue(clientData!['KTP_District'])),
+                      _safeStringValue(clientData!['KTP_District']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['KTP_Village']))
                   _iconDetailRow(Icons.place, 'KTP Village',
-                      _safeStringValue(clientData!['KTP_Village'])),
+                      _safeStringValue(clientData!['KTP_Village']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['KTP_Province']))
                   _iconDetailRow(Icons.map_outlined, 'KTP Province',
-                      _safeStringValue(clientData!['KTP_Province'])),
+                      _safeStringValue(clientData!['KTP_Province']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['KTP_Postal_Code']))
                   _iconDetailRow(Icons.markunread_mailbox, 'KTP Postal Code',
-                      _safeStringValue(clientData!['KTP_Postal_Code'])),
+                      _safeStringValue(clientData!['KTP_Postal_Code']),
+                      isCopyable: true),
               ],
             ),
           ),
@@ -562,17 +604,20 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                 // Outstanding Amount
                 if (_hasValue(clientData?['Total_OS_Yesterday1']))
                   _iconDetailRow(Icons.account_balance, 'Total Outstanding',
-                      _formatCurrency(clientData!['Total_OS_Yesterday1'])),
+                      _formatCurrency(clientData!['Total_OS_Yesterday1']),
+                      isCopyable: true),
 
                 // Loan Amounts
                 if (_hasValue(clientData?['Last_Statement_MAD']))
                   _iconDetailRow(Icons.attach_money, 'Last Statement MAD',
-                      _formatCurrency(clientData!['Last_Statement_MAD'])),
+                      _formatCurrency(clientData!['Last_Statement_MAD']),
+                      isCopyable: true),
                 if (_hasValue(clientData?['Last_Statement_TAD']))
                   _iconDetailRow(
                       Icons.account_balance_wallet,
                       'Last Statement TAD',
-                      _formatCurrency(clientData!['Last_Statement_TAD'])),
+                      _formatCurrency(clientData!['Last_Statement_TAD']),
+                      isCopyable: true),
 
                 // Payment Information
                 if (_hasValue(clientData?['Last_Payment_Amount']))
@@ -670,7 +715,8 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                       _safeStringValue(clientData!['Company_Name'])),
                 if (officeAddress != null && officeAddress.trim().isNotEmpty)
                   _iconDetailRow(
-                      Icons.location_city, 'Office Address', officeAddress),
+                      Icons.location_city, 'Office Address', officeAddress,
+                      isCopyable: true),
               ],
             ),
           ),
@@ -1121,7 +1167,8 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     );
   }
 
-  Widget _iconDetailRow(IconData icon, String label, String value) {
+  Widget _iconDetailRow(IconData icon, String label, String value,
+      {bool isCopyable = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
@@ -1138,6 +1185,24 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
           Expanded(
             child: Text(value),
           ),
+          if (isCopyable) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () => _copyToClipboard(value, label),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: const Icon(
+                  Icons.copy,
+                  size: 16,
+                  color: Colors.blueGrey,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1334,6 +1399,31 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
         ),
       ),
     );
+  }
+
+  void _navigateToSkipTracing() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SkipTracingScreen(
+          client: widget.client,
+        ),
+      ),
+    );
+  }
+
+  void _copyToClipboard(String text, String label) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$label copied to clipboard'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _openWhatsApp(String phone) async {
