@@ -953,14 +953,23 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
               controller: _newPhoneNumberController,
               decoration: const InputDecoration(
                 labelText: 'Enter new phone number (optional)',
-                hintText: 'New phone number found during contact...',
+                hintText: '812321561',
+                prefixText: '+62 ',
                 border: OutlineInputBorder(),
               ),
-              keyboardType: TextInputType.phone,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                PhoneNumberInputFormatter(),
+              ],
               onChanged: (value) {
+                // Extract only digits and add +62 prefix for backend
+                String digitsOnly = value.replaceAll(RegExp(r'[^\d]'), '');
+                String phoneWithPrefix =
+                    digitsOnly.isNotEmpty ? '+62$digitsOnly' : '';
                 context
                     .read<ContactabilityController>()
-                    .setNewPhoneNumber(value);
+                    .setNewPhoneNumber(phoneWithPrefix);
               },
             ),
           ],
@@ -1363,4 +1372,27 @@ class RupiahInputFormatter extends TextInputFormatter {
 /// Helper function to extract numeric value from formatted Rupiah string
 String extractNumericValue(String formattedValue) {
   return formattedValue.replaceAll(RegExp(r'[^\d]'), '');
+}
+
+/// Custom TextInputFormatter for Indonesian phone number formatting
+class PhoneNumberInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Remove all non-digit characters
+    String digitsOnly = newValue.text.replaceAll(RegExp(r'[^\d]'), '');
+
+    // Limit to 13 digits (Indonesian phone numbers max length after 62)
+    if (digitsOnly.length > 13) {
+      digitsOnly = digitsOnly.substring(0, 13);
+    }
+
+    // Return formatted value
+    return TextEditingValue(
+      text: digitsOnly,
+      selection: TextSelection.collapsed(offset: digitsOnly.length),
+    );
+  }
 }

@@ -607,12 +607,14 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                       _formatCurrency(clientData!['Total_OS_Yesterday1']),
                       isCopyable: true),
 
-                // Loan Amounts
-                if (_hasValue(clientData?['Last_Statement_MAD']))
+                // Loan Amounts - Only show if Buy_Back_Status is not "True"
+                if (_hasValue(clientData?['Last_Statement_MAD']) &&
+                    clientData?['Buy_Back_Status'] != "True")
                   _iconDetailRow(Icons.attach_money, 'Last Statement MAD',
                       _formatCurrency(clientData!['Last_Statement_MAD']),
                       isCopyable: true),
-                if (_hasValue(clientData?['Last_Statement_TAD']))
+                if (_hasValue(clientData?['Last_Statement_TAD']) &&
+                    clientData?['Buy_Back_Status'] != "True")
                   _iconDetailRow(
                       Icons.account_balance_wallet,
                       'Last Statement TAD',
