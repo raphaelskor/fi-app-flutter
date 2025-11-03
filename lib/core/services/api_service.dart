@@ -627,14 +627,16 @@ class ApiService {
 
       var request = http.MultipartRequest('POST', Uri.parse(url));
 
-      // Add form fields
-      data.forEach((key, value) {
-        if (value != null) {
-          request.fields[key] = value.toString();
-        }
-      });
+      // Add all data as a single JSON field to ensure proper structure
+      // This prevents Visit_Notes from being misinterpreted as a file
+      print('📝 Adding structured JSON body:');
+      final jsonBody = jsonEncode(data);
+      request.fields['body'] = jsonBody;
+      print('   ✏️ Field "body" = $jsonBody (type: JSON string)');
+      print('   📋 Parsed data keys: ${data.keys.join(', ')}');
 
-      // Add images
+      // Add images as FILE attachments (separate from JSON body)
+      print('🖼️ Adding image files to multipart request:');
       if (images != null && images.isNotEmpty) {
         // For message channel, use image1
         // For visit channel, use image1, image2, image3
@@ -654,8 +656,10 @@ class ApiService {
             ),
           );
           print(
-              '📎 Added $imageField for ${data['Channel']} channel: ${image.path}');
+              '   📎 File "$imageField" = ${image.path} (type: image/jpeg file attachment)');
         }
+      } else {
+        print('   ℹ️ No image files to attach');
       }
 
       print('🚀 Sending multipart request...');
