@@ -1,0 +1,45 @@
+# Flutter build artifacts
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+!build/web/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Misc
+*.log
+*.swp
+.DS_Store
+*.class
+*.dex
+*.jks
+local.properties
+
+# Android/iOS specific
+android/
+ios/
+linux/
+macos/
+windows/
+
+# Test
+test/
+test_driver/
+integration_test/
+
+# Assets (exclude unnecessary)
+assets/geo/*.json
+!assets/icon/
+
+# Documentation
+*.md
+!README.md
