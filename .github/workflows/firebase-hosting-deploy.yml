@@ -1,0 +1,45 @@
+# CATATAN: Workflow ini di-disable karena aplikasi ini dirancang untuk mobile
+# dan membutuhkan refactoring untuk mendukung web platform.
+# 
+# Masalah yang perlu diperbaiki:
+# 1. Penggunaan dart:io (File, Directory, Platform) yang tidak tersedia di web
+# 2. path_provider package yang tidak support web
+# 3. Image.file() yang tidak bisa digunakan di web (gunakan Image.network atau Image.memory)
+# 4. File I/O operations yang perlu diganti dengan web storage alternatives
+#
+# Untuk men-enable kembali, uncomment workflow di bawah setelah refactoring selesai
+
+# name: Deploy to Firebase Hosting
+#
+# on:
+#   push:
+#     branches:
+#       - main
+#
+# jobs:
+#   build_and_deploy:
+#     runs-on: ubuntu-latest
+#     
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+#
+#       - name: Setup Flutter
+#         uses: subosito/flutter-action@v2
+#         with:
+#           flutter-version: '3.24.5'
+#           channel: 'stable'
+#
+#       - name: Get dependencies
+#         run: flutter pub get
+#
+#       - name: Build web
+#         run: flutter build web --release --pwa-strategy=none --base-href /
+#
+#       - name: Deploy to Firebase Hosting
+#         uses: FirebaseExtended/action-hosting-deploy@v0
+#         with:
+#           repoToken: '${{ secrets.GITHUB_TOKEN }}'
+#           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+#           channelId: live
+#           projectId: skorcard-collection
