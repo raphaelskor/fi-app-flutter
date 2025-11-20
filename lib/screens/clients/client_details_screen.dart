@@ -313,11 +313,14 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 children: [
-                  _iconDetailRow(Icons.badge, 'Client ID', widget.client.id),
+                  _iconDetailRow(Icons.badge, 'Client ID', widget.client.id,
+                      isCopyable: true),
                   if (widget.client.skorUserId != null)
                     _iconDetailRow(Icons.fingerprint, 'Skor User ID',
-                        widget.client.skorUserId!),
-                  _iconDetailRow(Icons.person, 'Full Name', widget.client.name),
+                        widget.client.skorUserId!,
+                        isCopyable: true),
+                  _iconDetailRow(Icons.person, 'Full Name', widget.client.name,
+                      isCopyable: true),
                   _iconDetailRowWithActions(
                     Icons.phone,
                     'Mobile',
@@ -355,15 +358,23 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
           _buildPersonalSection(),
           const SizedBox(height: 16),
 
-          // Address Information
-          _buildAddressSection(),
+          // Correspondence Address (CA)
+          _buildCorrespondenceAddressSection(),
+          const SizedBox(height: 16),
+
+          // KTP Address
+          _buildKtpAddressSection(),
+          const SizedBox(height: 16),
+
+          // Residence Address (RA)
+          _buildResidenceAddressSection(),
           const SizedBox(height: 16),
 
           // Financial Information
           _buildFinancialSection(),
           const SizedBox(height: 16),
 
-          // Status & Dates
+          // Status & Employment (with Office Address)
           _buildStatusSection(),
         ],
       ),
@@ -489,13 +500,32 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     );
   }
 
-  Widget _buildAddressSection() {
+  Widget _buildCorrespondenceAddressSection() {
     final Map<String, dynamic>? clientData = _getClientApiData();
+
+    // Combine CA_Line_1 to CA_Line_4
+    String? caAddressLine;
+    final caLineParts = <String>[];
+    if (_hasValue(clientData?['CA_Line_1'])) {
+      caLineParts.add(clientData!['CA_Line_1'].toString());
+    }
+    if (_hasValue(clientData?['CA_Line_2'])) {
+      caLineParts.add(clientData!['CA_Line_2'].toString());
+    }
+    if (_hasValue(clientData?['CA_Line_3'])) {
+      caLineParts.add(clientData!['CA_Line_3'].toString());
+    }
+    if (_hasValue(clientData?['CA_Line_4'])) {
+      caLineParts.add(clientData!['CA_Line_4'].toString());
+    }
+    if (caLineParts.isNotEmpty) {
+      caAddressLine = caLineParts.join(', ');
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Address Information',
+        const Text('Correspondence Address',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         Card(
@@ -505,64 +535,193 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                // Current Address
-                if (_hasValue(clientData?['CA_Line_1']))
-                  _iconDetailRow(Icons.home, 'Address Line 1',
-                      _safeStringValue(clientData!['CA_Line_1']),
+                // Address Line (combined)
+                if (caAddressLine != null && caAddressLine.trim().isNotEmpty)
+                  _iconDetailRow(Icons.home, 'Address', caAddressLine,
                       isCopyable: true),
-                if (_hasValue(clientData?['CA_Line_2']))
-                  _iconDetailRow(Icons.home, 'Address Line 2',
-                      _safeStringValue(clientData!['CA_Line_2']),
-                      isCopyable: true),
-                if (_hasValue(clientData?['CA_City']))
-                  _iconDetailRow(Icons.location_city, 'City',
-                      _safeStringValue(clientData!['CA_City']),
-                      isCopyable: true),
-                if (_hasValue(clientData?['CA_District']))
-                  _iconDetailRow(Icons.map, 'District',
-                      _safeStringValue(clientData!['CA_District']),
-                      isCopyable: true),
-                if (_hasValue(clientData?['CA_Sub_District']))
-                  _iconDetailRow(Icons.place, 'Sub District',
-                      _safeStringValue(clientData!['CA_Sub_District']),
-                      isCopyable: true),
-                if (_hasValue(clientData?['CA_Province']))
-                  _iconDetailRow(Icons.map_outlined, 'Province',
-                      _safeStringValue(clientData!['CA_Province']),
-                      isCopyable: true),
-                if (_hasValue(clientData?['CA_ZipCode']))
-                  _iconDetailRow(Icons.markunread_mailbox, 'Zip Code',
-                      _safeStringValue(clientData!['CA_ZipCode']),
-                      isCopyable: true),
+
+                // RT/RW
                 if (_hasValue(clientData?['CA_RT_RW']))
                   _iconDetailRow(Icons.home_outlined, 'RT/RW',
                       _safeStringValue(clientData!['CA_RT_RW']),
                       isCopyable: true),
 
-                // KTP Address
+                // Sub District
+                if (_hasValue(clientData?['CA_Sub_District']))
+                  _iconDetailRow(Icons.place, 'Sub District',
+                      _safeStringValue(clientData!['CA_Sub_District']),
+                      isCopyable: true),
+
+                // District
+                if (_hasValue(clientData?['CA_District']))
+                  _iconDetailRow(Icons.map, 'District',
+                      _safeStringValue(clientData!['CA_District']),
+                      isCopyable: true),
+
+                // City
+                if (_hasValue(clientData?['CA_City']))
+                  _iconDetailRow(Icons.location_city, 'City',
+                      _safeStringValue(clientData!['CA_City']),
+                      isCopyable: true),
+
+                // Province
+                if (_hasValue(clientData?['CA_Province']))
+                  _iconDetailRow(Icons.map_outlined, 'Province',
+                      _safeStringValue(clientData!['CA_Province']),
+                      isCopyable: true),
+
+                // Zip Code
+                if (_hasValue(clientData?['CA_ZipCode']))
+                  _iconDetailRow(Icons.markunread_mailbox, 'Zip Code',
+                      _safeStringValue(clientData!['CA_ZipCode']),
+                      isCopyable: true),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildKtpAddressSection() {
+    final Map<String, dynamic>? clientData = _getClientApiData();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('KTP Address',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                // KTP Address (full text field)
                 if (_hasValue(clientData?['KTP_Address']))
-                  _iconDetailRow(Icons.credit_card, 'KTP Address',
+                  _iconDetailRow(Icons.credit_card, 'Address',
                       _safeStringValue(clientData!['KTP_Address']),
                       isCopyable: true),
-                if (_hasValue(clientData?['KTP_City']))
-                  _iconDetailRow(Icons.location_city, 'KTP City',
-                      _safeStringValue(clientData!['KTP_City']),
-                      isCopyable: true),
-                if (_hasValue(clientData?['KTP_District']))
-                  _iconDetailRow(Icons.map, 'KTP District',
-                      _safeStringValue(clientData!['KTP_District']),
-                      isCopyable: true),
+
+                // Village
                 if (_hasValue(clientData?['KTP_Village']))
-                  _iconDetailRow(Icons.place, 'KTP Village',
+                  _iconDetailRow(Icons.place, 'Village',
                       _safeStringValue(clientData!['KTP_Village']),
                       isCopyable: true),
+
+                // District
+                if (_hasValue(clientData?['KTP_District']))
+                  _iconDetailRow(Icons.map, 'District',
+                      _safeStringValue(clientData!['KTP_District']),
+                      isCopyable: true),
+
+                // City
+                if (_hasValue(clientData?['KTP_City']))
+                  _iconDetailRow(Icons.location_city, 'City',
+                      _safeStringValue(clientData!['KTP_City']),
+                      isCopyable: true),
+
+                // Province
                 if (_hasValue(clientData?['KTP_Province']))
-                  _iconDetailRow(Icons.map_outlined, 'KTP Province',
+                  _iconDetailRow(Icons.map_outlined, 'Province',
                       _safeStringValue(clientData!['KTP_Province']),
                       isCopyable: true),
+
+                // Postal Code
                 if (_hasValue(clientData?['KTP_Postal_Code']))
-                  _iconDetailRow(Icons.markunread_mailbox, 'KTP Postal Code',
+                  _iconDetailRow(Icons.markunread_mailbox, 'Postal Code',
                       _safeStringValue(clientData!['KTP_Postal_Code']),
+                      isCopyable: true),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildResidenceAddressSection() {
+    final Map<String, dynamic>? clientData = _getClientApiData();
+
+    // Combine RA_Line_1 to RA_Line_4
+    String? raAddressLine;
+    final raLineParts = <String>[];
+    if (_hasValue(clientData?['RA_Line_1'])) {
+      raLineParts.add(clientData!['RA_Line_1'].toString());
+    }
+    if (_hasValue(clientData?['RA_Line_2'])) {
+      raLineParts.add(clientData!['RA_Line_2'].toString());
+    }
+    if (_hasValue(clientData?['RA_Line_3'])) {
+      raLineParts.add(clientData!['RA_Line_3'].toString());
+    }
+    if (_hasValue(clientData?['RA_Line_4'])) {
+      raLineParts.add(clientData!['RA_Line_4'].toString());
+    }
+    if (raLineParts.isNotEmpty) {
+      raAddressLine = raLineParts.join(', ');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Residence Address',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                // Address Line (combined)
+                if (raAddressLine != null && raAddressLine.trim().isNotEmpty)
+                  _iconDetailRow(Icons.home, 'Address', raAddressLine,
+                      isCopyable: true),
+
+                // RT/RW
+                if (_hasValue(clientData?['RA_RT_RW']))
+                  _iconDetailRow(Icons.home_outlined, 'RT/RW',
+                      _safeStringValue(clientData!['RA_RT_RW']),
+                      isCopyable: true),
+
+                // Sub District
+                if (_hasValue(clientData?['Residence_Address_SubDistrict']))
+                  _iconDetailRow(
+                      Icons.place,
+                      'Sub District',
+                      _safeStringValue(
+                          clientData!['Residence_Address_SubDistrict']),
+                      isCopyable: true),
+
+                // District
+                if (_hasValue(clientData?['RA_District']))
+                  _iconDetailRow(Icons.map, 'District',
+                      _safeStringValue(clientData!['RA_District']),
+                      isCopyable: true),
+
+                // City
+                if (_hasValue(clientData?['Residence_Address_City']))
+                  _iconDetailRow(Icons.location_city, 'City',
+                      _safeStringValue(clientData!['Residence_Address_City']),
+                      isCopyable: true),
+
+                // Province
+                if (_hasValue(clientData?['Residence_Address_Province']))
+                  _iconDetailRow(
+                      Icons.map_outlined,
+                      'Province',
+                      _safeStringValue(
+                          clientData!['Residence_Address_Province']),
+                      isCopyable: true),
+
+                // Zip Code
+                if (_hasValue(clientData?['RA_Zip_Code']))
+                  _iconDetailRow(Icons.markunread_mailbox, 'Zip Code',
+                      _safeStringValue(clientData!['RA_Zip_Code']),
                       isCopyable: true),
               ],
             ),
@@ -656,39 +815,23 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
   Widget _buildStatusSection() {
     final Map<String, dynamic>? clientData = _getClientApiData();
 
-    // Compose possible office address from common keys if available
-    String? officeAddress;
-    if (_hasValue(clientData?['Company_Address'])) {
-      officeAddress = clientData!['Company_Address'].toString();
-    } else if (_hasValue(clientData?['Office_Address'])) {
-      officeAddress = clientData!['Office_Address'].toString();
-    } else {
-      // Try to build from separate office address lines if provided
-      final parts = <String>[];
-      if (_hasValue(clientData?['Office_Address_Line_1'])) {
-        parts.add(clientData!['Office_Address_Line_1'].toString());
-      }
-      if (_hasValue(clientData?['Office_Address_Line_2'])) {
-        parts.add(clientData!['Office_Address_Line_2'].toString());
-      }
-      if (_hasValue(clientData?['Office_City'])) {
-        parts.add(clientData!['Office_City'].toString());
-      }
-      if (_hasValue(clientData?['Office_District'])) {
-        parts.add(clientData!['Office_District'].toString());
-      }
-      if (_hasValue(clientData?['Office_Sub_District'])) {
-        parts.add(clientData!['Office_Sub_District'].toString());
-      }
-      if (_hasValue(clientData?['Office_Province'])) {
-        parts.add(clientData!['Office_Province'].toString());
-      }
-      if (_hasValue(clientData?['Office_ZipCode'])) {
-        parts.add(clientData!['Office_ZipCode'].toString());
-      }
-      if (parts.isNotEmpty) {
-        officeAddress = parts.join(', ');
-      }
+    // Compose Office Address Line (combine OA_Line_1 to OA_Line_4 only)
+    String? officeAddressLine;
+    final lineParts = <String>[];
+    if (_hasValue(clientData?['OA_Line_1'])) {
+      lineParts.add(clientData!['OA_Line_1'].toString());
+    }
+    if (_hasValue(clientData?['OA_Line_2'])) {
+      lineParts.add(clientData!['OA_Line_2'].toString());
+    }
+    if (_hasValue(clientData?['OA_Line_3'])) {
+      lineParts.add(clientData!['OA_Line_3'].toString());
+    }
+    if (_hasValue(clientData?['OA_Line_4'])) {
+      lineParts.add(clientData!['OA_Line_4'].toString());
+    }
+    if (lineParts.isNotEmpty) {
+      officeAddressLine = lineParts.join(', ');
     }
 
     return Column(
@@ -715,9 +858,51 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                 if (_hasValue(clientData?['Company_Name']))
                   _iconDetailRow(Icons.business, 'Company',
                       _safeStringValue(clientData!['Company_Name'])),
-                if (officeAddress != null && officeAddress.trim().isNotEmpty)
+
+                // Office Address (gabungan OA_Line_1 sampai 4)
+                if (officeAddressLine != null &&
+                    officeAddressLine.trim().isNotEmpty)
                   _iconDetailRow(
-                      Icons.location_city, 'Office Address', officeAddress,
+                      Icons.location_on, 'Office Address', officeAddressLine,
+                      isCopyable: true),
+
+                // RT/RW terpisah
+                if (_hasValue(clientData?['OA_RT_RW']))
+                  _iconDetailRow(Icons.home_outlined, 'Office RT/RW',
+                      _safeStringValue(clientData!['OA_RT_RW']),
+                      isCopyable: true),
+
+                // Sub District terpisah
+                if (_hasValue(clientData?['Office_Address_SubDistrict']))
+                  _iconDetailRow(
+                      Icons.place,
+                      'Office Sub District',
+                      _safeStringValue(
+                          clientData!['Office_Address_SubDistrict']),
+                      isCopyable: true),
+
+                // District terpisah
+                if (_hasValue(clientData?['Office_Address_District']))
+                  _iconDetailRow(Icons.map, 'Office District',
+                      _safeStringValue(clientData!['Office_Address_District']),
+                      isCopyable: true),
+
+                // City terpisah
+                if (_hasValue(clientData?['Office_Address_City']))
+                  _iconDetailRow(Icons.location_city, 'Office City',
+                      _safeStringValue(clientData!['Office_Address_City']),
+                      isCopyable: true),
+
+                // Province terpisah
+                if (_hasValue(clientData?['Office_Address_Province']))
+                  _iconDetailRow(Icons.map_outlined, 'Office Province',
+                      _safeStringValue(clientData!['Office_Address_Province']),
+                      isCopyable: true),
+
+                // Zipcode terpisah
+                if (_hasValue(clientData?['Office_Address_Zipcode']))
+                  _iconDetailRow(Icons.markunread_mailbox, 'Office Zipcode',
+                      _safeStringValue(clientData!['Office_Address_Zipcode']),
                       isCopyable: true),
               ],
             ),

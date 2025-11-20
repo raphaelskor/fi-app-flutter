@@ -595,8 +595,18 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         ...commonResults,
       ];
     } else if (_selectedChannel == ContactabilityChannel.call) {
-      // Hanya opsi common untuk Call
-      availableResults = commonResults;
+      // 8 opsi khusus untuk Call + opsi common
+      availableResults = [
+        ContactResult.leaveAMessage,
+        ContactResult.hangUp,
+        ContactResult.rejected,
+        ContactResult.noAnswer,
+        ContactResult.busy,
+        ContactResult.mailbox,
+        ContactResult.invalidNumber,
+        ContactResult.unreachable,
+        ...commonResults,
+      ];
     } else {
       // 7 opsi untuk Message (WA/SP) + opsi common
       availableResults = [

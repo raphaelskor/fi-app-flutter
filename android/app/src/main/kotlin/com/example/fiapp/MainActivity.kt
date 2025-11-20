@@ -12,11 +12,12 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
-        // Set up method channel for screenshot protection
+        // Set up method channel for screenshot protection (DISABLED)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "disableScreenshot" -> {
-                    disableScreenshot()
+                    // Screenshot protection is disabled - allow screenshots
+                    // disableScreenshot()
                     result.success(true)
                 }
                 else -> {
@@ -28,15 +29,16 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Disable screenshot immediately when activity is created
-        disableScreenshot()
+        // Enable screenshot - Comment out FLAG_SECURE
+        // disableScreenshot()
     }
 
     private fun disableScreenshot() {
-        // FLAG_SECURE prevents screenshots and screen recording
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+        // FLAG_SECURE prevents screenshots and screen recording (DISABLED)
+        // Allow screenshots by commenting out FLAG_SECURE
+        // window.setFlags(
+        //     WindowManager.LayoutParams.FLAG_SECURE,
+        //     WindowManager.LayoutParams.FLAG_SECURE
+        // )
     }
 }

@@ -78,6 +78,14 @@ enum ContactResult {
   sp1,
   sp2,
   sp3,
+  leaveAMessage,
+  hangUp,
+  rejected,
+  noAnswer,
+  busy,
+  mailbox,
+  invalidNumber,
+  unreachable,
 }
 
 enum VisitLocation {
@@ -476,6 +484,22 @@ extension ContactResultExtension on ContactResult {
         return 'SP 2';
       case ContactResult.sp3:
         return 'SP 3';
+      case ContactResult.leaveAMessage:
+        return 'Leave a Message';
+      case ContactResult.hangUp:
+        return 'Hang Up';
+      case ContactResult.rejected:
+        return 'Rejected';
+      case ContactResult.noAnswer:
+        return 'No Answer';
+      case ContactResult.busy:
+        return 'Busy';
+      case ContactResult.mailbox:
+        return 'Mailbox';
+      case ContactResult.invalidNumber:
+        return 'Invalid Number';
+      case ContactResult.unreachable:
+        return 'Unreachable';
     }
   }
 

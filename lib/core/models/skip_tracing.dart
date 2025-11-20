@@ -5,6 +5,7 @@ class SkipTracing {
   final String userName;
   final String userId;
   final String source;
+  final String provider;
   final String mobile;
   final String? mobileStatus;
   final DateTime createdTime;
@@ -14,6 +15,7 @@ class SkipTracing {
     required this.userName,
     required this.userId,
     required this.source,
+    required this.provider,
     required this.mobile,
     this.mobileStatus,
     required this.createdTime,
@@ -24,7 +26,8 @@ class SkipTracing {
       id: json['id'] ?? '',
       userName: json['User_ID']?['name'] ?? 'N/A',
       userId: json['User_ID']?['id'] ?? '',
-      source: json['Source'] ?? 'N/A',
+      source: json['Source'] ?? '',
+      provider: json['Provider'] ?? 'N/A',
       mobile: json['Mobile'] ?? 'N/A',
       mobileStatus: json['Mobile_Status'],
       createdTime: json['Created_Time'] != null

@@ -18,29 +18,28 @@ void main() async {
 
   // Ensure system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-    ),
+    const SystemUiOverlayStyle(statusBarColor: Colors.transparent),
   );
 
-  // Disable screenshot for Android and iOS
-  if (Platform.isAndroid || Platform.isIOS) {
-    await _disableScreenshot();
-  }
+  // Enable screenshot for Android and iOS
+  // Comment out to allow screenshot
+  // if (Platform.isAndroid || Platform.isIOS) {
+  //   await _disableScreenshot();
+  // }
 
   runApp(MyApp());
 }
 
-// Method to disable screenshot on Android
-Future<void> _disableScreenshot() async {
-  try {
-    const platform = MethodChannel('com.skorcard.fiapp/screenshot');
-    await platform.invokeMethod('disableScreenshot');
-    debugPrint('✅ Screenshot disabled successfully');
-  } catch (e) {
-    debugPrint('❌ Failed to disable screenshot: $e');
-  }
-}
+// Method to disable screenshot on Android (DISABLED - Allow screenshots)
+// Future<void> _disableScreenshot() async {
+//   try {
+//     const platform = MethodChannel('com.skorcard.fiapp/screenshot');
+//     await platform.invokeMethod('disableScreenshot');
+//     debugPrint('✅ Screenshot disabled successfully');
+//   } catch (e) {
+//     debugPrint('❌ Failed to disable screenshot: $e');
+//   }
+// }
 
 class MyApp extends StatelessWidget {
   @override
@@ -73,9 +72,7 @@ class MyApp extends StatelessWidget {
           // Explicitly set font family to ensure Material Icons work
           fontFamily: 'Roboto',
           // Ensure icon theme is properly set
-          iconTheme: const IconThemeData(
-            color: Colors.black87,
-          ),
+          iconTheme: const IconThemeData(color: Colors.black87),
         ),
         home: AuthWrapper(),
       ),

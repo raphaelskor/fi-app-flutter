@@ -264,14 +264,25 @@ class _SkipTracingScreenState extends State<SkipTracingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Source
+            // Provider
             _buildInfoRow(
-              Icons.source,
-              'Source',
-              skipTracing.source,
-              color: Colors.blue,
+              Icons.business,
+              'Provider',
+              skipTracing.provider,
+              color: Colors.purple,
             ),
             const SizedBox(height: 12),
+
+            // Source (only show if not empty)
+            if (skipTracing.source.isNotEmpty) ...[
+              _buildInfoRow(
+                Icons.source,
+                'Source',
+                skipTracing.source,
+                color: Colors.blue,
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Mobile with Copy Button and Action Buttons
             Row(
