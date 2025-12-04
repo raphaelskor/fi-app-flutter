@@ -33,6 +33,8 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   final _visitNotesController = TextEditingController();
   final _visitAgentController = TextEditingController();
   final _visitAgentTeamLeadController = TextEditingController();
+  final _agentNameController =
+      TextEditingController(); // For non-Skorcard users
   final _ptpAmountController = TextEditingController();
   final _newPhoneNumberController = TextEditingController();
   final _newAddressController = TextEditingController();
@@ -41,6 +43,13 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
   DateTime? _selectedPtpDate;
   bool _showPtpFields = false;
   bool _hasAttemptedSubmit = false; // Track if user has attempted to submit
+
+  // Helper method to check if current user is from Skorcard team
+  bool _isSkorCardUser() {
+    final authService = context.read<AuthService>();
+    final userTeam = authService.userData?['team'] as String?;
+    return userTeam != null && userTeam.toLowerCase() == 'skorcard';
+  }
 
   @override
   void initState() {
@@ -75,10 +84,17 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
         final userName = userData['name']?.toString() ?? '';
         final userTeamName = userData['team']?.toString() ?? '';
 
-        _visitAgentController.text = userName;
-        _visitAgentTeamLeadController.text = userTeamName;
+        // For Skorcard users, auto-fill with user name
+        // For non-Skorcard users, leave empty for manual input
+        if (_isSkorCardUser()) {
+          _visitAgentController.text = userName;
+          controller.setVisitAgent(userName);
+        } else {
+          _visitAgentController.text = '';
+          _agentNameController.text = '';
+        }
 
-        controller.setVisitAgent(userName);
+        _visitAgentTeamLeadController.text = userTeamName;
         controller.setVisitAgentTeamLead(userTeamName);
       }
 
@@ -99,6 +115,7 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     _visitNotesController.dispose();
     _visitAgentController.dispose();
     _visitAgentTeamLeadController.dispose();
+    _agentNameController.dispose();
     _ptpAmountController.dispose();
     _newPhoneNumberController.dispose();
     _newAddressController.dispose();
@@ -161,6 +178,11 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
                     const SizedBox(height: 20),
                   _buildVisitNotesSection(),
                   const SizedBox(height: 20),
+                  // Agent Name section for non-Skorcard users
+                  if (!_isSkorCardUser()) ...[
+                    _buildAgentNameSection(),
+                    const SizedBox(height: 20),
+                  ],
                   _buildNewPhoneNumberSection(),
                   const SizedBox(height: 20),
                   _buildNewAddressSection(),
@@ -945,6 +967,56 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
     );
   }
 
+  Widget _buildAgentNameSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Text(
+                  'Agent Name',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  ' *',
+                  style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _agentNameController,
+              decoration: const InputDecoration(
+                labelText: 'Enter agent name',
+                hintText: 'Agent conducting the contactability',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Agent name is required';
+                }
+                return null;
+              },
+              onChanged: (value) {
+                // Update both the controller and the visit agent field
+                _visitAgentController.text = value;
+                context.read<ContactabilityController>().setVisitAgent(value);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildNewPhoneNumberSection() {
     return Card(
       elevation: 2,
@@ -1093,6 +1165,17 @@ class _ContactabilityFormScreenState extends State<ContactabilityFormScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select action location'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validate Agent Name for non-Skorcard users
+    if (!_isSkorCardUser() && _agentNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter agent name'),
           backgroundColor: Colors.red,
         ),
       );

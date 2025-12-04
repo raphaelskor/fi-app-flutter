@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dart:io';
 import '../../core/controllers/contactability_controller.dart';
 import '../../core/models/client.dart';
 import '../../core/models/contactability_history.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/services/photo_service.dart';
 import '../../core/utils/app_utils.dart' as AppUtils;
+import '../../core/utils/timezone_utils.dart';
 import '../../widgets/common_widgets.dart';
 import '../contactability_form_screen.dart';
 import '../contactability/contactability_details_screen.dart';
@@ -32,6 +36,19 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
   Map<String, String?> _photoPaths = {'ktp': null, 'selfie': null};
   bool _isLoadingPhotos = false;
   String? _photoError;
+
+  // Filter state for contactability history
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  DateTime? _startDate;
+  DateTime? _endDate;
+  String? _selectedContactResult;
+  bool _showFilters = false;
+
+  // EMI Restructuring state
+  Map<String, dynamic>? _emiRestructuringData;
+  bool _isLoadingEmiData = false;
+  bool _hasEmiData = false;
 
   @override
   void initState() {
@@ -75,6 +92,9 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
         if (skorUserId != null && skorUserId.isNotEmpty) {
           _loadUserPhotos(skorUserId);
         }
+
+        // Load EMI Restructuring data
+        _loadEmiRestructuringData();
       } catch (e) {
         debugPrint('Error initializing ContactabilityController: $e');
         // Initialize with empty skorUserId if there's an error
@@ -89,7 +109,70 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  /// Loads EMI Restructuring data from the API
+  Future<void> _loadEmiRestructuringData() async {
+    setState(() {
+      _isLoadingEmiData = true;
+      _hasEmiData = false;
+      _emiRestructuringData = null;
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'https://n8n.skorcard.app/webhook/6894fe90-b82f-48b8-bb16-8397a3b54c32'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'id': widget.client.id,
+        }),
+      );
+
+      debugPrint(
+          '🔍 EMI Restructuring API response status: ${response.statusCode}');
+      debugPrint('🔍 EMI Restructuring API response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = json.decode(response.body);
+
+        if (responseData.isNotEmpty &&
+            responseData[0]['data'] != null &&
+            responseData[0]['data'] is List &&
+            responseData[0]['data'].isNotEmpty) {
+          final emiData = responseData[0]['data'][0];
+
+          setState(() {
+            _emiRestructuringData = emiData;
+            _hasEmiData = true;
+            _isLoadingEmiData = false;
+          });
+
+          debugPrint('✅ EMI Restructuring data loaded successfully');
+        } else {
+          // No data available for this client
+          setState(() {
+            _hasEmiData = false;
+            _isLoadingEmiData = false;
+          });
+          debugPrint('ℹ️ No EMI Restructuring data available for client');
+        }
+      } else {
+        throw Exception(
+            'API request failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading EMI Restructuring data: $e');
+      setState(() {
+        _hasEmiData = false;
+        _isLoadingEmiData = false;
+      });
+      // Don't show error to user, just hide the section
+    }
   }
 
   /// Loads user photos (KTP and Selfie) from the API
@@ -174,6 +257,9 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
           if (skorUserId != null && skorUserId.isNotEmpty) {
             _loadUserPhotos(skorUserId);
           }
+
+          // Load EMI Restructuring data
+          _loadEmiRestructuringData();
         } catch (e) {
           debugPrint('Error reinitializing ContactabilityController: $e');
           // Initialize with empty skorUserId if there's an error
@@ -373,6 +459,10 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
           // Financial Information
           _buildFinancialSection(),
           const SizedBox(height: 16),
+
+          // EMI Restructuring Information (if available and user is Skorcard team)
+          if (_hasEmiData && _isSkorCardUser()) _buildEmiRestructuringSection(),
+          if (_hasEmiData && _isSkorCardUser()) const SizedBox(height: 16),
 
           // Status & Employment (with Office Address)
           _buildStatusSection(),
@@ -766,14 +856,16 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                       _formatCurrency(clientData!['Total_OS_Yesterday1']),
                       isCopyable: true),
 
-                // Loan Amounts - Only show if Buy_Back_Status is not "True"
+                // Loan Amounts - Only show for Skorcard team and if Buy_Back_Status is not "True"
                 if (_hasValue(clientData?['Last_Statement_MAD']) &&
-                    clientData?['Buy_Back_Status'] != "True")
+                    clientData?['Buy_Back_Status'] != "True" &&
+                    _isSkorCardUser())
                   _iconDetailRow(Icons.attach_money, 'Last Statement MAD',
                       _formatCurrency(clientData!['Last_Statement_MAD']),
                       isCopyable: true),
                 if (_hasValue(clientData?['Last_Statement_TAD']) &&
-                    clientData?['Buy_Back_Status'] != "True")
+                    clientData?['Buy_Back_Status'] != "True" &&
+                    _isSkorCardUser())
                   _iconDetailRow(
                       Icons.account_balance_wallet,
                       'Last Statement TAD',
@@ -793,7 +885,8 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                 if (_hasValue(clientData?['Repayment_Amount']))
                   _iconDetailRow(Icons.event, 'Repayment Amount',
                       _formatCurrency(clientData!['Repayment_Amount'])),
-                if (_hasValue(clientData?['Buy_Back_Status']))
+                if (_hasValue(clientData?['Buy_Back_Status']) &&
+                    _isSkorCardUser())
                   _iconDetailRow(Icons.shopping_cart, 'BuyBack Status',
                       _safeStringValue(clientData!['Buy_Back_Status'])),
 
@@ -804,6 +897,65 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
                 if (_hasValue(clientData?['DPD_Bucket']))
                   _iconDetailRow(Icons.category, 'DPD Bucket',
                       _safeStringValue(clientData!['DPD_Bucket'])),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmiRestructuringSection() {
+    if (!_hasEmiData || _emiRestructuringData == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('EMI Restructuring Information',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                if (_hasValue(_emiRestructuringData!['Original_Due_Amount']))
+                  _iconDetailRow(
+                    Icons.account_balance_wallet,
+                    'Original Due Amount',
+                    _formatCurrency(
+                        _emiRestructuringData!['Original_Due_Amount']),
+                  ),
+                if (_hasValue(_emiRestructuringData!['Due_Date']))
+                  _iconDetailRow(
+                    Icons.event,
+                    'Restructure Due Date',
+                    _formatDate(_emiRestructuringData!['Due_Date']),
+                  ),
+                if (_hasValue(_emiRestructuringData!['Tenure']))
+                  _iconDetailRow(
+                    Icons.schedule,
+                    'Restructure Tenure',
+                    '${_emiRestructuringData!['Tenure']} months',
+                  ),
+                if (_hasValue(_emiRestructuringData!['Current_Due_Amount']))
+                  _iconDetailRow(
+                    Icons.monetization_on,
+                    'Current Due Amount',
+                    _formatCurrency(
+                        _emiRestructuringData!['Current_Due_Amount']),
+                  ),
+                if (_hasValue(_emiRestructuringData!['Total_Paid_Amount']))
+                  _iconDetailRow(
+                    Icons.payment,
+                    'Total Paid Amount',
+                    _formatCurrency(
+                        _emiRestructuringData!['Total_Paid_Amount']),
+                  ),
               ],
             ),
           ),
@@ -1161,6 +1313,16 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     return 'Rp ${parts.join('.')}';
   }
 
+  // Helper method to check if current user is from Skorcard team
+  bool _isSkorCardUser() {
+    final authService = context.read<AuthService>();
+    final userTeam = authService.userData?['team'] as String?;
+    debugPrint('🏢 User team: "$userTeam"');
+    debugPrint(
+        '🔍 Is Skorcard user: ${userTeam != null && userTeam.toLowerCase() == 'skorcard'}');
+    return userTeam != null && userTeam.toLowerCase() == 'skorcard';
+  }
+
   // Helper method to format date from YYYY-MM-DD to Indonesian format
   String _formatDate(dynamic value) {
     if (value == null) return 'N/A';
@@ -1203,6 +1365,58 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     }
   }
 
+  // Filter contactability history items based on search query, date range, and contact result
+  List<ContactabilityHistory> _filterContactabilityHistory(
+      List<ContactabilityHistory> items) {
+    return items.where((item) {
+      // Search filter - search in notes and contact result
+      bool matchesSearch = _searchQuery.isEmpty ||
+          (item.notes?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
+              false) ||
+          item.resultDisplayName
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()) ||
+          item.channelDisplayName
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase());
+
+      // Date filter
+      bool matchesDateRange = true;
+      if (_startDate != null || _endDate != null) {
+        final itemDate = DateTime(
+          item.contactedAt.year,
+          item.contactedAt.month,
+          item.contactedAt.day,
+        );
+
+        if (_startDate != null) {
+          final startDate = DateTime(
+            _startDate!.year,
+            _startDate!.month,
+            _startDate!.day,
+          );
+          matchesDateRange = matchesDateRange && !itemDate.isBefore(startDate);
+        }
+
+        if (_endDate != null) {
+          final endDate = DateTime(
+            _endDate!.year,
+            _endDate!.month,
+            _endDate!.day,
+          );
+          matchesDateRange = matchesDateRange && !itemDate.isAfter(endDate);
+        }
+      }
+
+      // Contact result filter
+      bool matchesContactResult = _selectedContactResult == null ||
+          item.resultDisplayName.toLowerCase() ==
+              _selectedContactResult!.toLowerCase();
+
+      return matchesSearch && matchesDateRange && matchesContactResult;
+    }).toList();
+  }
+
   Widget _buildContactabilityHistoryTab() {
     return Consumer<ContactabilityController>(
       builder: (context, controller, child) {
@@ -1220,11 +1434,15 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
 
           case ContactabilityLoadingState.loaded:
           case ContactabilityLoadingState.submitted:
-            final history = controller.contactabilityHistory;
-            if (history.isEmpty) {
+            final allHistory = controller.contactabilityHistory;
+            final filteredHistory = _filterContactabilityHistory(allHistory);
+
+            if (allHistory.isEmpty) {
               return _buildEmptyHistoryState();
+            } else if (filteredHistory.isEmpty && allHistory.isNotEmpty) {
+              return _buildNoResultsState();
             }
-            return _buildHistoryList(history, controller);
+            return _buildHistoryListWithFilters(filteredHistory, controller);
 
           case ContactabilityLoadingState.submitting:
             return const LoadingWidget(message: 'Submitting...');
@@ -1233,51 +1451,449 @@ class _ClientDetailsScreenState extends State<ClientDetailsScreen>
     );
   }
 
+  // Date picker methods
+  Future<void> _selectStartDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _startDate ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _startDate) {
+      setState(() {
+        _startDate = picked;
+      });
+    }
+  }
+
+  Future<void> _selectEndDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? DateTime.now(),
+      firstDate: _startDate ?? DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _endDate) {
+      setState(() {
+        _endDate = picked;
+      });
+    }
+  }
+
   Widget _buildEmptyHistoryState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.history,
-            size: 64,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No contact history yet',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
+    return RefreshIndicator(
+      onRefresh: () => context.read<ContactabilityController>().refresh(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.history,
+                  size: 64,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No contact history yet',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Start by contacting this client',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Pull down to refresh',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[400],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Start by contacting this client',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildHistoryList(List<ContactabilityHistory> history,
+  Widget _buildNoResultsState() {
+    return RefreshIndicator(
+      onRefresh: () => context.read<ContactabilityController>().refresh(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.search_off,
+                  size: 64,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No results found',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Try adjusting your search or date filters',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[500],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _searchQuery = '';
+                      _searchController.clear();
+                      _startDate = null;
+                      _endDate = null;
+                      _selectedContactResult = null;
+                    });
+                  },
+                  icon: const Icon(Icons.clear_all),
+                  label: const Text('Clear Filters'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[50],
+                    foregroundColor: Colors.blue[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryListWithFilters(List<ContactabilityHistory> history,
       ContactabilityController controller) {
     return RefreshIndicator(
       onRefresh: () => controller.refresh(),
-      child: ListView.builder(
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16.0),
-        itemCount: history.length,
-        itemBuilder: (context, index) {
-          final contactability = history[index];
-          return _buildHistoryCard(contactability);
-        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Search bar
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by notes, contact result, or channel...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _searchQuery = '';
+                            _searchController.clear();
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                filled: true,
+                fillColor: Colors.grey[50],
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // Filter button and active filters display
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showFilters = !_showFilters;
+                    });
+                  },
+                  icon: Icon(
+                    _showFilters ? Icons.filter_list_off : Icons.filter_list,
+                    size: 20,
+                  ),
+                  label: const Text('Filters'),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: (_startDate != null ||
+                            _endDate != null ||
+                            _selectedContactResult != null)
+                        ? Colors.blue[50]
+                        : null,
+                    foregroundColor: (_startDate != null ||
+                            _endDate != null ||
+                            _selectedContactResult != null)
+                        ? Colors.blue[700]
+                        : null,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.history,
+                        size: 16,
+                        color: Colors.blue[700],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${history.length} records',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Filter section
+            if (_showFilters) ..._buildFilterSection(),
+
+            const SizedBox(height: 20),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: history.length,
+              itemBuilder: (context, index) {
+                final contactability = history[index];
+                return _buildHistoryCard(contactability);
+              },
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  List<Widget> _buildFilterSection() {
+    return [
+      const SizedBox(height: 12),
+      Card(
+        elevation: 1,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Filter by Date Range',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _selectStartDate(),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Start Date',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          _startDate != null
+                              ? TimezoneUtils.formatIndonesianDate(_startDate!)
+                              : 'Select start date',
+                          style: TextStyle(
+                            color: _startDate != null
+                                ? Colors.black87
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _selectEndDate(),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'End Date',
+                          border: OutlineInputBorder(),
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        child: Text(
+                          _endDate != null
+                              ? TimezoneUtils.formatIndonesianDate(_endDate!)
+                              : 'Select end date',
+                          style: TextStyle(
+                            color: _endDate != null
+                                ? Colors.black87
+                                : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Contact Result Filter
+              const Text(
+                'Filter by Contact Result',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                child: DropdownButtonFormField<String>(
+                  value: _selectedContactResult,
+                  decoration: const InputDecoration(
+                    labelText: 'Contact Result',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.check_circle_outline),
+                  ),
+                  hint: const Text('Select contact result'),
+                  isExpanded: true,
+                  items: _getContactResultDropdownItems(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedContactResult = value;
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (_startDate != null ||
+                      _endDate != null ||
+                      _selectedContactResult != null)
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _startDate = null;
+                          _endDate = null;
+                          _selectedContactResult = null;
+                        });
+                      },
+                      icon: const Icon(Icons.clear),
+                      label: const Text('Clear All Filters'),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<DropdownMenuItem<String>> _getContactResultDropdownItems() {
+    return [
+      const DropdownMenuItem<String>(
+        value: null,
+        child: Text('All Results'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Promise to Pay (PTP)',
+        child: Text('Promise to Pay (PTP)'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Already Paid',
+        child: Text('Already Paid'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Refuse to Pay',
+        child: Text('Refuse to Pay'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Negotiation',
+        child: Text('Negotiation'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Hot Prospect',
+        child: Text('Hot Prospect'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Dispute',
+        child: Text('Dispute'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Not Recognized',
+        child: Text('Not Recognized'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Partial Payment',
+        child: Text('Partial Payment'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Failed to Pay',
+        child: Text('Failed to Pay'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Alamat Ditemukan, Rumah Kosong',
+        child: Text('Alamat Ditemukan, Rumah Kosong'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Alamat Tidak Ditemukan',
+        child: Text('Alamat Tidak Ditemukan'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Alamat Salah',
+        child: Text('Alamat Salah'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'Menghindar',
+        child: Text('Menghindar'),
+      ),
+      const DropdownMenuItem<String>(
+        value: 'No Respond',
+        child: Text('No Respond'),
+      ),
+    ];
   }
 
   Widget _buildHistoryCard(ContactabilityHistory contactability) {

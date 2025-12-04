@@ -8,6 +8,8 @@ import '../../widgets/common_widgets.dart';
 import '../contactability/contactability_details_screen.dart';
 
 class ContactabilityHistoryTab extends StatefulWidget {
+  const ContactabilityHistoryTab({Key? key}) : super(key: key);
+
   @override
   State<ContactabilityHistoryTab> createState() =>
       _ContactabilityHistoryTabState();
@@ -47,7 +49,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
       // Load history after controller is set
       await _controller?.loadHistory();
     } catch (e) {
-      print('Error initializing ContactabilityHistoryTab: $e');
+      debugPrint('Error initializing ContactabilityHistoryTab: $e');
       setState(() {
         _isInitialized = true; // Still set as initialized even on error
       });
@@ -159,7 +161,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
       onRefresh: () => _controller?.refresh() ?? Future.value(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
+        child: SizedBox(
           height: MediaQuery.of(context).size.height * 0.6,
           child: Center(
             child: Column(
@@ -209,7 +211,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
       onRefresh: () => _controller?.refresh() ?? Future.value(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: Container(
+        child: SizedBox(
           height: MediaQuery.of(context).size.height * 0.6,
           child: Center(
             child: Column(
@@ -274,16 +276,16 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Contactability History',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text(
               'All prior conversations/calls with clients',
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
 
             // Search bar
             TextField(
@@ -330,7 +332,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
                     _showFilters ? Icons.filter_list_off : Icons.filter_list,
                     size: 20,
                   ),
-                  label: Text('Filters'),
+                  label: const Text('Filters'),
                   style: OutlinedButton.styleFrom(
                     backgroundColor: (_startDate != null ||
                             _endDate != null ||
@@ -456,165 +458,169 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        value: _selectedContactResult,
-                        decoration: const InputDecoration(
-                          labelText: 'Contact Result',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.check_circle_outline),
+                      SizedBox(
+                        width: double.infinity,
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedContactResult,
+                          decoration: const InputDecoration(
+                            labelText: 'Contact Result',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.check_circle_outline),
+                          ),
+                          hint: const Text('Select contact result'),
+                          isExpanded: true,
+                          items: const [
+                            DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('All Results'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Alamat Ditemukan, Rumah Kosong',
+                              child: Text('Alamat Ditemukan, Rumah Kosong'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Dilarang Masuk Perumahan',
+                              child: Text('Dilarang Masuk Perumahan'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Dilarang Masuk Kantor',
+                              child: Text('Dilarang Masuk Kantor'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Menghindar',
+                              child: Text('Menghindar'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Titip Surat',
+                              child: Text('Titip Surat'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Alamat Tidak Ditemukan',
+                              child: Text('Alamat Tidak Ditemukan'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Alamat Salah',
+                              child: Text('Alamat Salah'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Konsumen Tidak Dikenal',
+                              child: Text('Konsumen Tidak Dikenal'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Pindah, Tidak Ditemukan',
+                              child: Text('Pindah, Tidak Ditemukan'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Pindah, Alamat Baru',
+                              child: Text('Pindah, Alamat Baru'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Meninggal Dunia',
+                              child: Text('Meninggal Dunia'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Mengundurkan Diri',
+                              child: Text('Mengundurkan Diri'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Berhenti Bekerja',
+                              child: Text('Berhenti Bekerja'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Sedang Renovasi',
+                              child: Text('Sedang Renovasi'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Bencana Alam',
+                              child: Text('Bencana Alam'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Kondisi Medis',
+                              child: Text('Kondisi Medis'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Sengketa Hukum',
+                              child: Text('Sengketa Hukum'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Kunjungan Ulang',
+                              child: Text('Kunjungan Ulang'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Promise to Pay (PTP)',
+                              child: Text('Promise to Pay (PTP)'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Negotiation',
+                              child: Text('Negotiation'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Hot Prospect',
+                              child: Text('Hot Prospect'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Already Paid',
+                              child: Text('Already Paid'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Refuse to Pay',
+                              child: Text('Refuse to Pay'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Dispute',
+                              child: Text('Dispute'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Not Recognized',
+                              child: Text('Not Recognized'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Partial Payment',
+                              child: Text('Partial Payment'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'Failed to Pay',
+                              child: Text('Failed to Pay'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'WA One Tick',
+                              child: Text('WA One Tick'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'WA Two Tick',
+                              child: Text('WA Two Tick'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'WA Blue Tick',
+                              child: Text('WA Blue Tick'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'WA Not Registered',
+                              child: Text('WA Not Registered'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'SP 1',
+                              child: Text('SP 1'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'SP 2',
+                              child: Text('SP 2'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'SP 3',
+                              child: Text('SP 3'),
+                            ),
+                            DropdownMenuItem<String>(
+                              value: 'No Respond',
+                              child: Text('No Respond'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedContactResult = value;
+                            });
+                          },
                         ),
-                        hint: const Text('Select contact result'),
-                        items: [
-                          const DropdownMenuItem<String>(
-                            value: null,
-                            child: Text('All Results'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Alamat Ditemukan, Rumah Kosong',
-                            child: Text('Alamat Ditemukan, Rumah Kosong'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Dilarang Masuk Perumahan',
-                            child: Text('Dilarang Masuk Perumahan'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Dilarang Masuk Kantor',
-                            child: Text('Dilarang Masuk Kantor'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Menghindar',
-                            child: Text('Menghindar'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Titip Surat',
-                            child: Text('Titip Surat'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Alamat Tidak Ditemukan',
-                            child: Text('Alamat Tidak Ditemukan'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Alamat Salah',
-                            child: Text('Alamat Salah'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Konsumen Tidak Dikenal',
-                            child: Text('Konsumen Tidak Dikenal'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Pindah, Tidak Ditemukan',
-                            child: Text('Pindah, Tidak Ditemukan'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Pindah, Alamat Baru',
-                            child: Text('Pindah, Alamat Baru'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Meninggal Dunia',
-                            child: Text('Meninggal Dunia'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Mengundurkan Diri',
-                            child: Text('Mengundurkan Diri'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Berhenti Bekerja',
-                            child: Text('Berhenti Bekerja'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Sedang Renovasi',
-                            child: Text('Sedang Renovasi'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Bencana Alam',
-                            child: Text('Bencana Alam'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Kondisi Medis',
-                            child: Text('Kondisi Medis'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Sengketa Hukum',
-                            child: Text('Sengketa Hukum'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Kunjungan Ulang',
-                            child: Text('Kunjungan Ulang'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Promise to Pay (PTP)',
-                            child: Text('Promise to Pay (PTP)'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Negotiation',
-                            child: Text('Negotiation'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Hot Prospect',
-                            child: Text('Hot Prospect'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Already Paid',
-                            child: Text('Already Paid'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Refuse to Pay',
-                            child: Text('Refuse to Pay'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Dispute',
-                            child: Text('Dispute'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Not Recognized',
-                            child: Text('Not Recognized'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Partial Payment',
-                            child: Text('Partial Payment'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'Failed to Pay',
-                            child: Text('Failed to Pay'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'WA One Tick',
-                            child: Text('WA One Tick'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'WA Two Tick',
-                            child: Text('WA Two Tick'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'WA Blue Tick',
-                            child: Text('WA Blue Tick'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'WA Not Registered',
-                            child: Text('WA Not Registered'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'SP 1',
-                            child: Text('SP 1'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'SP 2',
-                            child: Text('SP 2'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'SP 3',
-                            child: Text('SP 3'),
-                          ),
-                          const DropdownMenuItem<String>(
-                            value: 'No Respond',
-                            child: Text('No Respond'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedContactResult = value;
-                          });
-                        },
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -644,7 +650,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
             const SizedBox(height: 20),
             ListView.builder(
               shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: history.length,
               itemBuilder: (context, index) {
                 final item = history[index];
@@ -659,7 +665,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
 
   Widget _buildHistoryCard(ClientContactabilityHistoryItem item) {
     return Card(
-      margin: EdgeInsets.only(bottom: 15),
+      margin: const EdgeInsets.only(bottom: 15),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
@@ -679,7 +685,7 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
                       children: [
                         Text(
                           item.clientName,
-                          style: TextStyle(
+                          style: const TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -933,13 +939,13 @@ class _ContactabilityHistoryTabState extends State<ContactabilityHistoryTab> {
 
   // Helper method to format time with 7 hours subtraction
   String _formatAdjustedTime(DateTime dateTime) {
-    final adjustedTime = dateTime.subtract(Duration(hours: 7));
+    final adjustedTime = dateTime.subtract(const Duration(hours: 7));
     return TimezoneUtils.formatTime(adjustedTime);
   }
 
   // Helper method to format date with 7 hours subtraction
   String _formatAdjustedDate(DateTime dateTime) {
-    final adjustedDateTime = dateTime.subtract(Duration(hours: 7));
+    final adjustedDateTime = dateTime.subtract(const Duration(hours: 7));
     return TimezoneUtils.formatIndonesianDate(adjustedDateTime);
   }
 }

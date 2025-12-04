@@ -395,8 +395,8 @@ class ApiService {
   }
 
   // Fetch contactability history from Skorcard API
-  Future<List<Map<String, dynamic>>> fetchContactabilityHistory(
-      String clientId) async {
+  Future<List<Map<String, dynamic>>> fetchContactabilityHistory(String clientId,
+      {String? team, String? email}) async {
     try {
       // Validate input
       if (clientId.isEmpty || clientId.toLowerCase() == 'null') {
@@ -409,10 +409,22 @@ class ApiService {
       final String baseUrl =
           'https://n8n.skorcard.app/webhook/0843b27d-6ead-4232-9499-adb2e09cc02e';
 
-      // Prepare request body with client ID
+      // Prepare request body with client ID, team, and email
       final Map<String, dynamic> requestBody = {
         'id': clientId,
       };
+
+      // Add team field if provided
+      if (team != null && team.isNotEmpty) {
+        requestBody['team'] = team;
+        print('👥 Team: $team');
+      }
+
+      // Add email field if provided
+      if (email != null && email.isNotEmpty) {
+        requestBody['email'] = email;
+        print('📧 Email: $email');
+      }
 
       print('🌐 Request URL: $baseUrl');
       print('🔑 Client ID: $clientId');

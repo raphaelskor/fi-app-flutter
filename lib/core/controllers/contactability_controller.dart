@@ -161,7 +161,14 @@ class ContactabilityController extends ChangeNotifier {
       // Fetch data from Skorcard API with error handling
       final List<Map<String, dynamic>> rawHistory;
       try {
-        rawHistory = await _apiService.fetchContactabilityHistory(apiCallId);
+        // Get team and email from user data
+        final userTeam = _authService.userData?['team']?.toString();
+        final userEmail = _authService.userData?['email']?.toString();
+        rawHistory = await _apiService.fetchContactabilityHistory(
+          apiCallId,
+          team: userTeam,
+          email: userEmail,
+        );
         debugPrint(
             '✅ Fetched ${rawHistory.length} contactability records for $apiCallId');
       } catch (apiError) {

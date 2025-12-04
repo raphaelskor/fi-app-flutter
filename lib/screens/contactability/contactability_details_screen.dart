@@ -95,6 +95,9 @@ class _ContactabilityDetailsScreenState
             _buildContactInformationSection(),
             const SizedBox(height: 16),
 
+            // Agent Information (for all channels)
+            _buildAgentInformationSection(),
+
             // Visit Details (if applicable)
             if (_isFieldVisit()) _buildVisitDetailsSection(),
 
@@ -436,6 +439,94 @@ class _ContactabilityDetailsScreenState
     );
   }
 
+  Widget _buildAgentInformationSection() {
+    // Check if any agent information exists
+    final hasVisitAgent = widget.contactability.visitAgent != null ||
+        _hasValue(widget.contactability.rawData['Visit_Agent']) ||
+        _hasValue(widget.contactability.rawData['Call_Agent']) ||
+        _hasValue(widget.contactability.rawData['Agent_WA_Sent_Name']);
+
+    final hasTeamLead =
+        _hasValue(widget.contactability.rawData['Visit_Agent_Team_Lead']);
+    final hasVisitBySkorTeam =
+        _hasValue(widget.contactability.rawData['Visit_by_Skor_Team']);
+
+    if (!hasVisitAgent && !hasTeamLead && !hasVisitBySkorTeam) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Agent Information',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                // Visit Agent - check multiple possible fields
+                if (widget.contactability.visitAgent != null)
+                  _buildInfoRow(
+                    Icons.person,
+                    'Visit Agent',
+                    widget.contactability.visitAgent!,
+                  )
+                else if (_hasValue(
+                    widget.contactability.rawData['Visit_Agent']))
+                  _buildInfoRow(
+                    Icons.person,
+                    'Visit Agent',
+                    widget.contactability.rawData['Visit_Agent'].toString(),
+                  )
+                else if (_hasValue(widget.contactability.rawData['Call_Agent']))
+                  _buildInfoRow(
+                    Icons.person,
+                    'Visit Agent',
+                    widget.contactability.rawData['Call_Agent'].toString(),
+                  )
+                else if (_hasValue(
+                    widget.contactability.rawData['Agent_WA_Sent_Name']))
+                  _buildInfoRow(
+                    Icons.person,
+                    'Visit Agent',
+                    widget.contactability.rawData['Agent_WA_Sent_Name']
+                        .toString(),
+                  ),
+
+                // Visit Agent Team Lead
+                if (_hasValue(
+                    widget.contactability.rawData['Visit_Agent_Team_Lead']))
+                  _buildInfoRow(
+                    Icons.supervisor_account,
+                    'Visit Agent Team Lead',
+                    widget.contactability.rawData['Visit_Agent_Team_Lead']
+                        .toString(),
+                  ),
+
+                // Visit by Skor Team
+                if (_hasValue(
+                    widget.contactability.rawData['Visit_by_Skor_Team']))
+                  _buildInfoRow(
+                    Icons.group,
+                    'Visit by Skor Team',
+                    widget.contactability.rawData['Visit_by_Skor_Team']
+                        .toString(),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
   Widget _buildVisitDetailsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,12 +543,6 @@ class _ContactabilityDetailsScreenState
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                if (widget.contactability.visitAgent != null)
-                  _buildInfoRow(
-                    Icons.person,
-                    'Visit Agent',
-                    widget.contactability.visitAgent!,
-                  ),
                 if (widget.contactability.visitLocation != null)
                   _buildInfoRow(
                     Icons.location_on,
@@ -487,22 +572,6 @@ class _ContactabilityDetailsScreenState
                     'Visit Action',
                     widget.contactability.rawData['Vist_Action'].toString(),
                   ),
-                if (_hasValue(
-                    widget.contactability.rawData['Visit_by_Skor_Team']))
-                  _buildInfoRow(
-                    Icons.group,
-                    'Visit by Skor Team',
-                    widget.contactability.rawData['Visit_by_Skor_Team']
-                        .toString(),
-                  ),
-                if (_hasValue(
-                    widget.contactability.rawData['Visit_Agent_Team_Lead']))
-                  _buildInfoRow(
-                    Icons.supervisor_account,
-                    'Team Lead',
-                    widget.contactability.rawData['Visit_Agent_Team_Lead']
-                        .toString(),
-                  ),
               ],
             ),
           ),
@@ -528,12 +597,6 @@ class _ContactabilityDetailsScreenState
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                if (_hasValue(widget.contactability.rawData['Call_Agent']))
-                  _buildInfoRow(
-                    Icons.person,
-                    'Call Agent',
-                    widget.contactability.rawData['Call_Agent'].toString(),
-                  ),
                 if (_hasValue(widget.contactability.rawData['Call_Done_to']))
                   _buildInfoRow(
                     Icons.phone,
@@ -627,14 +690,6 @@ class _ContactabilityDetailsScreenState
                     Icons.chat,
                     'WhatsApp Channel',
                     widget.contactability.rawData['Whats_app_Channel']
-                        .toString(),
-                  ),
-                if (_hasValue(
-                    widget.contactability.rawData['Agent_WA_Sent_Name']))
-                  _buildInfoRow(
-                    Icons.person,
-                    'Sent By',
-                    widget.contactability.rawData['Agent_WA_Sent_Name']
                         .toString(),
                   ),
                 if (_hasValue(

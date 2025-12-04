@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../../core/controllers/client_controller.dart';
 import '../../core/models/client.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/utils/app_utils.dart' as AppUtils;
 import '../../widgets/common_widgets.dart';
 import '../contactability_form_screen.dart';
@@ -35,22 +36,54 @@ class _ListClientTabState extends State<ListClientTab> {
   bool _sortAscending = true;
   bool _isFilterExpanded = false; // Add this for hide/unhide functionality
 
-  // Available sort options
-  final List<Map<String, String>> _sortOptions = [
-    {'key': 'Last_Statement_MAD', 'label': 'MAD'},
-    {'key': 'Last_Statement_TAD', 'label': 'TAD'},
-    {'key': 'Total_OS_Yesterday1', 'label': 'Total OS'},
-    {'key': 'Last_Payment_Amount', 'label': 'Last Payment Amount'},
-    {'key': 'Last_Payment_Date', 'label': 'Last Payment Date'},
-    {'key': 'Buy_Back_Status', 'label': 'BuyBack Status'},
-  ];
+  // Helper method to check if current user is from Skorcard team
+  bool _isSkorCardUser() {
+    final authService = context.read<AuthService>();
+    final userTeam = authService.userData?['team'] as String?;
+    final isSkorcard = userTeam != null && userTeam.toLowerCase() == 'skorcard';
+    debugPrint(
+        '🏢 User team: "$userTeam" - Sort options available: ${isSkorcard ? 'Full (including MAD/TAD/BuyBack)' : 'Limited (no MAD/TAD/BuyBack)'}');
+    return isSkorcard;
+  }
+
+  // Get available sort options based on user team
+  List<Map<String, String>> get _sortOptions {
+    List<Map<String, String>> options = [
+      {'key': 'Total_OS_Yesterday1', 'label': 'Total OS'},
+      {'key': 'Last_Payment_Amount', 'label': 'Last Payment Amount'},
+      {'key': 'Last_Payment_Date', 'label': 'Last Payment Date'},
+    ];
+
+    // Add Skorcard-specific options only for Skorcard team members
+    if (_isSkorCardUser()) {
+      options.addAll([
+        {'key': 'Last_Statement_MAD', 'label': 'MAD'},
+        {'key': 'Last_Statement_TAD', 'label': 'TAD'},
+        {'key': 'Buy_Back_Status', 'label': 'BuyBack Status'},
+      ]);
+    }
+
+    return options;
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ClientController>().initialize();
+      _validateSortOption();
     });
+  }
+
+  // Validate if current sort option is available for user's team
+  void _validateSortOption() {
+    if (_sortBy != null &&
+        !_sortOptions.any((option) => option['key'] == _sortBy)) {
+      setState(() {
+        _sortBy = null;
+        _sortAscending = true;
+      });
+    }
   }
 
   void _showCacheDebugInfo() async {
@@ -727,9 +760,12 @@ class _ListClientTabState extends State<ListClientTab> {
       filters.add('City: $_selectedCity');
     }
     if (_sortBy != null) {
-      final sortLabel = _sortOptions
-          .firstWhere((option) => option['key'] == _sortBy)['label'];
-      filters.add('Sort: $sortLabel ${_sortAscending ? '↑' : '↓'}');
+      final sortOption =
+          _sortOptions.where((option) => option['key'] == _sortBy).firstOrNull;
+      if (sortOption != null) {
+        filters
+            .add('Sort: ${sortOption['label']} ${_sortAscending ? '↑' : '↓'}');
+      }
     }
 
     return filters.join(' • ');
@@ -822,9 +858,12 @@ class _ListClientTabState extends State<ListClientTab> {
       filterInfo.add('city: "$_selectedCity"');
     }
     if (_sortBy != null) {
-      final sortLabel = _sortOptions
-          .firstWhere((option) => option['key'] == _sortBy)['label'];
-      filterInfo.add('sorted by: $sortLabel ${_sortAscending ? '↑' : '↓'}');
+      final sortOption =
+          _sortOptions.where((option) => option['key'] == _sortBy).firstOrNull;
+      if (sortOption != null) {
+        filterInfo.add(
+            'sorted by: ${sortOption['label']} ${_sortAscending ? '↑' : '↓'}');
+      }
     }
 
     if (filterInfo.isEmpty) {
@@ -1174,13 +1213,18 @@ class _ListClientTabState extends State<ListClientTab> {
             children: [
               Icon(Icons.sort, size: 16, color: Colors.blue[600]),
               const SizedBox(width: 5),
-              Text(
-                '${_sortOptions.firstWhere((option) => option['key'] == _sortBy)['label']}: ',
-                style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue[600],
-                    fontWeight: FontWeight.w500),
-              ),
+              Builder(builder: (context) {
+                final sortOption = _sortOptions
+                    .where((option) => option['key'] == _sortBy)
+                    .firstOrNull;
+                return Text(
+                  '${sortOption?['label'] ?? 'Sort'}: ',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue[600],
+                      fontWeight: FontWeight.w500),
+                );
+              }),
               Expanded(
                 child: Text(
                   _formatSortValue(client.rawApiData![_sortBy!], _sortBy!),

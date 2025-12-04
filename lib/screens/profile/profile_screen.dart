@@ -438,10 +438,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Attendance History (1 Bulan Terakhir)',
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
+                              Expanded(
+                                child: Text(
+                                  'Attendance History (1 Bulan Terakhir)',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                ),
                               ),
                               if (isLoadingAttendance)
                                 SizedBox(
