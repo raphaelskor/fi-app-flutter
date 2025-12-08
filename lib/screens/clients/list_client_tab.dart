@@ -201,6 +201,8 @@ class _ListClientTabState extends State<ListClientTab> {
       if (_fieldContains(rawData['EC2_Name'], lowerQuery)) return true;
       if (_fieldContains(rawData['EC2_Phone'], query)) return true;
       if (_fieldContains(rawData['EC2_Relation'], lowerQuery)) return true;
+      if (_fieldContains(rawData['Emegency_Contact_Name'], lowerQuery))
+        return true;
 
       // Personal information
       if (_fieldContains(rawData['Gender'], lowerQuery)) return true;
@@ -396,6 +398,12 @@ class _ListClientTabState extends State<ListClientTab> {
       if (_fieldContains(rawData['EC2_Relation'], lowerQuery)) {
         addMatchWithPreview('EC2 Relation', rawData['EC2_Relation'].toString(),
             'contact_emergency');
+      }
+
+      // Additional emergency contact (note: field has typo in API)
+      if (_fieldContains(rawData['Emegency_Contact_Name'], lowerQuery)) {
+        addMatchWithPreview('Emergency Contact (Legacy)',
+            rawData['Emegency_Contact_Name'].toString(), 'contact_emergency');
       }
 
       // Personal information
@@ -597,7 +605,6 @@ class _ListClientTabState extends State<ListClientTab> {
     }
 
     // Create preview window around the match (like Google search snippets)
-    const maxPreviewLength = 60;
     const padding = 20;
 
     int startIndex = (matchIndex - padding).clamp(0, text.length);
