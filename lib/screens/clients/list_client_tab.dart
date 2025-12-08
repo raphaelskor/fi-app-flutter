@@ -173,6 +173,481 @@ class _ListClientTabState extends State<ListClientTab> {
     return cleaned;
   }
 
+  /// Comprehensive search across all client data fields
+  bool _matchesSearchQuery(Client client, String query) {
+    final lowerQuery = query.toLowerCase();
+
+    // Basic client fields
+    if (client.name.toLowerCase().contains(lowerQuery)) return true;
+    if (client.phone.contains(query)) return true;
+    if (_formatPhoneClean(client.phone).contains(query)) return true;
+    if (client.address.toLowerCase().contains(lowerQuery)) return true;
+    if (client.email?.toLowerCase().contains(lowerQuery) == true) return true;
+    if (client.status.toLowerCase().contains(lowerQuery)) return true;
+
+    // Search in raw API data for all other fields
+    final rawData = client.rawApiData;
+    if (rawData != null) {
+      // Contact information
+      if (_fieldContains(rawData['Home_Phone'], query)) return true;
+      if (_fieldContains(rawData['Office_Phone'], query)) return true;
+      if (_fieldContains(rawData['Any_other_phone_No'], query)) return true;
+      if (_fieldContains(rawData['Email'], lowerQuery)) return true;
+
+      // Emergency contacts
+      if (_fieldContains(rawData['EC1_Name'], lowerQuery)) return true;
+      if (_fieldContains(rawData['EC1_Phone'], query)) return true;
+      if (_fieldContains(rawData['EC1_Relation'], lowerQuery)) return true;
+      if (_fieldContains(rawData['EC2_Name'], lowerQuery)) return true;
+      if (_fieldContains(rawData['EC2_Phone'], query)) return true;
+      if (_fieldContains(rawData['EC2_Relation'], lowerQuery)) return true;
+
+      // Personal information
+      if (_fieldContains(rawData['Gender'], lowerQuery)) return true;
+
+      // Address information
+      if (_fieldContains(rawData['CA_Line_1'], lowerQuery)) return true;
+      if (_fieldContains(rawData['CA_Line_2'], lowerQuery)) return true;
+      if (_fieldContains(rawData['CA_Line_3'], lowerQuery)) return true;
+      if (_fieldContains(rawData['CA_Line_4'], lowerQuery)) return true;
+      if (_fieldContains(rawData['CA_City'], lowerQuery)) return true;
+      if (_fieldContains(rawData['CA_Province'], lowerQuery)) return true;
+      if (_fieldContains(rawData['CA_District'], lowerQuery)) return true;
+      if (_fieldContains(rawData['CA_Sub_District'], lowerQuery)) return true;
+      if (_fieldContains(rawData['CA_RT_RW'], lowerQuery)) return true;
+      if (_fieldContains(rawData['CA_ZipCode'], query)) return true;
+
+      // KTP Address
+      if (_fieldContains(rawData['KTP_Address'], lowerQuery)) return true;
+      if (_fieldContains(rawData['KTP_Village'], lowerQuery)) return true;
+      if (_fieldContains(rawData['KTP_District'], lowerQuery)) return true;
+      if (_fieldContains(rawData['KTP_City'], lowerQuery)) return true;
+      if (_fieldContains(rawData['KTP_Province'], lowerQuery)) return true;
+      if (_fieldContains(rawData['KTP_Postal_Code'], query)) return true;
+
+      // Residence Address
+      if (_fieldContains(rawData['RA_Line_1'], lowerQuery)) return true;
+      if (_fieldContains(rawData['RA_Line_2'], lowerQuery)) return true;
+      if (_fieldContains(rawData['RA_Line_3'], lowerQuery)) return true;
+      if (_fieldContains(rawData['RA_Line_4'], lowerQuery)) return true;
+      if (_fieldContains(rawData['Residence_Address_City'], lowerQuery))
+        return true;
+      if (_fieldContains(rawData['Residence_Address_Province'], lowerQuery))
+        return true;
+      if (_fieldContains(rawData['Residence_Address_SubDistrict'], lowerQuery))
+        return true;
+      if (_fieldContains(rawData['RA_District'], lowerQuery)) return true;
+      if (_fieldContains(rawData['RA_RT_RW'], lowerQuery)) return true;
+      if (_fieldContains(rawData['RA_Zip_Code'], query)) return true;
+
+      // Employment information
+      if (_fieldContains(rawData['Job_Details'], lowerQuery)) return true;
+      if (_fieldContains(rawData['Position_Details'], lowerQuery)) return true;
+      if (_fieldContains(rawData['Company_Name'], lowerQuery)) return true;
+
+      // Office Address
+      if (_fieldContains(rawData['OA_Line_1'], lowerQuery)) return true;
+      if (_fieldContains(rawData['OA_Line_2'], lowerQuery)) return true;
+      if (_fieldContains(rawData['OA_Line_3'], lowerQuery)) return true;
+      if (_fieldContains(rawData['OA_Line_4'], lowerQuery)) return true;
+      if (_fieldContains(rawData['Office_Address_City'], lowerQuery))
+        return true;
+      if (_fieldContains(rawData['Office_Address_Province'], lowerQuery))
+        return true;
+      if (_fieldContains(rawData['Office_Address_SubDistrict'], lowerQuery))
+        return true;
+      if (_fieldContains(rawData['Office_Address_District'], lowerQuery))
+        return true;
+      if (_fieldContains(rawData['OA_RT_RW'], lowerQuery)) return true;
+      if (_fieldContains(rawData['Office_Address_Zipcode'], query)) return true;
+
+      // Financial information (searchable by all users, but display restricted)
+      if (_fieldContains(rawData['Total_OS_Yesterday1'], query)) return true;
+      if (_fieldContains(rawData['Last_Payment_Amount'], query)) return true;
+      if (_fieldContains(rawData['Last_Payment_Date'], query)) return true;
+      if (_fieldContains(rawData['Rep_Status_Current_Bill'], lowerQuery))
+        return true;
+      if (_fieldContains(rawData['Repayment_Amount'], query)) return true;
+      if (_fieldContains(rawData['Days_Past_Due'], query)) return true;
+      if (_fieldContains(rawData['DPD_Bucket'], lowerQuery)) return true;
+
+      // Skorcard-specific fields (searchable by all, but display may be restricted)
+      if (_fieldContains(rawData['Last_Statement_MAD'], query)) return true;
+      if (_fieldContains(rawData['Last_Statement_TAD'], query)) return true;
+      if (_fieldContains(rawData['Buy_Back_Status'], lowerQuery)) return true;
+    }
+
+    return false;
+  }
+
+  /// Helper method to check if a field contains the search query
+  bool _fieldContains(dynamic fieldValue, String query) {
+    if (fieldValue == null) return false;
+    final fieldStr = fieldValue.toString().toLowerCase();
+    if (fieldStr.isEmpty || fieldStr == 'null' || fieldStr == 'na')
+      return false;
+    return fieldStr.contains(query.toLowerCase());
+  }
+
+  /// Get comprehensive search match details with text preview (like Google search results)
+  List<Map<String, dynamic>> _getSearchMatches(Client client, String query) {
+    final matches = <Map<String, dynamic>>[];
+    final lowerQuery = query.toLowerCase();
+    final rawData = client.rawApiData;
+
+    // Helper function to create match with preview
+    void addMatchWithPreview(String label, String value, String icon,
+        {String? fieldName, bool isHighPriority = false}) {
+      if (value.isNotEmpty &&
+          value.toLowerCase() != 'null' &&
+          value.toLowerCase() != 'na') {
+        final preview = _createSearchPreview(value, query);
+        matches.add({
+          'label': label,
+          'value': value,
+          'preview': preview,
+          'icon': icon,
+          'fieldName': fieldName ?? label,
+          'isHighPriority': isHighPriority,
+          'hasMatch': preview['hasMatch'],
+        });
+      }
+    }
+
+    // Check basic client fields first (high priority)
+    if (client.name.toLowerCase().contains(lowerQuery)) {
+      addMatchWithPreview('Name', client.name, 'person', isHighPriority: true);
+    }
+
+    if (client.phone.contains(query) ||
+        _formatPhoneClean(client.phone).contains(query)) {
+      addMatchWithPreview('Phone', _formatPhoneClean(client.phone), 'phone',
+          isHighPriority: true);
+    }
+
+    if (client.address.toLowerCase().contains(lowerQuery)) {
+      addMatchWithPreview('Address', client.address, 'location_on',
+          isHighPriority: true);
+    }
+
+    if (client.email?.toLowerCase().contains(lowerQuery) == true) {
+      addMatchWithPreview('Email', client.email!, 'email',
+          isHighPriority: true);
+    }
+
+    if (rawData != null) {
+      // Client Status (from basic field but not checked above if separate)
+      if (client.status.toLowerCase().contains(lowerQuery)) {
+        addMatchWithPreview('Status', client.status, 'info',
+            isHighPriority: true);
+      }
+
+      // Contact information
+      if (_fieldContains(rawData['Home_Phone'], query) &&
+          rawData['Home_Phone'].toString() != client.phone) {
+        addMatchWithPreview(
+            'Home Phone', rawData['Home_Phone'].toString(), 'home');
+      }
+
+      if (_fieldContains(rawData['Office_Phone'], query) &&
+          rawData['Office_Phone'].toString() != client.phone) {
+        addMatchWithPreview(
+            'Office Phone', rawData['Office_Phone'].toString(), 'business');
+      }
+
+      if (_fieldContains(rawData['Any_other_phone_No'], query)) {
+        addMatchWithPreview(
+            'Other Phone', rawData['Any_other_phone_No'].toString(), 'phone');
+      }
+
+      if (_fieldContains(rawData['Email'], lowerQuery) &&
+          rawData['Email'].toString() != client.email) {
+        addMatchWithPreview('Email', rawData['Email'].toString(), 'email');
+      }
+
+      // Emergency contacts - comprehensive coverage
+      if (_fieldContains(rawData['EC1_Name'], lowerQuery)) {
+        final relation = rawData['EC1_Relation']?.toString() ?? 'Contact';
+        addMatchWithPreview('Emergency Contact 1',
+            '${rawData['EC1_Name']} ($relation)', 'contact_emergency');
+      }
+
+      if (_fieldContains(rawData['EC1_Phone'], query)) {
+        addMatchWithPreview(
+            'EC1 Phone', rawData['EC1_Phone'].toString(), 'contact_emergency');
+      }
+
+      if (_fieldContains(rawData['EC1_Relation'], lowerQuery)) {
+        addMatchWithPreview('EC1 Relation', rawData['EC1_Relation'].toString(),
+            'contact_emergency');
+      }
+
+      if (_fieldContains(rawData['EC2_Name'], lowerQuery)) {
+        final relation = rawData['EC2_Relation']?.toString() ?? 'Contact';
+        addMatchWithPreview('Emergency Contact 2',
+            '${rawData['EC2_Name']} ($relation)', 'contact_emergency');
+      }
+
+      if (_fieldContains(rawData['EC2_Phone'], query)) {
+        addMatchWithPreview(
+            'EC2 Phone', rawData['EC2_Phone'].toString(), 'contact_emergency');
+      }
+
+      if (_fieldContains(rawData['EC2_Relation'], lowerQuery)) {
+        addMatchWithPreview('EC2 Relation', rawData['EC2_Relation'].toString(),
+            'contact_emergency');
+      }
+
+      // Personal information
+      if (_fieldContains(rawData['Gender'], lowerQuery)) {
+        addMatchWithPreview('Gender', rawData['Gender'].toString(), 'person');
+      }
+
+      // Employment information
+      if (_fieldContains(rawData['Company_Name'], lowerQuery)) {
+        addMatchWithPreview(
+            'Company', rawData['Company_Name'].toString(), 'business');
+      }
+
+      if (_fieldContains(rawData['Job_Details'], lowerQuery)) {
+        addMatchWithPreview('Job', rawData['Job_Details'].toString(), 'work');
+      }
+
+      if (_fieldContains(rawData['Position_Details'], lowerQuery)) {
+        addMatchWithPreview(
+            'Position', rawData['Position_Details'].toString(), 'badge');
+      }
+
+      // Correspondence Address (CA) - comprehensive coverage
+      final caAddressFields = {
+        'CA_Line_1': 'CA Address Line 1',
+        'CA_Line_2': 'CA Address Line 2',
+        'CA_Line_3': 'CA Address Line 3',
+        'CA_Line_4': 'CA Address Line 4',
+        'CA_City': 'CA City',
+        'CA_Province': 'CA Province',
+        'CA_District': 'CA District',
+        'CA_Sub_District': 'CA Sub District',
+        'CA_RT_RW': 'CA RT/RW',
+        'CA_ZipCode': 'CA Zip Code',
+      };
+
+      caAddressFields.forEach((field, label) {
+        if (_fieldContains(rawData[field], lowerQuery)) {
+          addMatchWithPreview(label, rawData[field].toString(), 'location_on');
+        }
+      });
+
+      // KTP Address - comprehensive coverage
+      final ktpAddressFields = {
+        'KTP_Address': 'KTP Address',
+        'KTP_Village': 'KTP Village',
+        'KTP_District': 'KTP District',
+        'KTP_City': 'KTP City',
+        'KTP_Province': 'KTP Province',
+        'KTP_Postal_Code': 'KTP Postal Code',
+      };
+
+      ktpAddressFields.forEach((field, label) {
+        if (_fieldContains(rawData[field], lowerQuery)) {
+          addMatchWithPreview(label, rawData[field].toString(), 'id_card');
+        }
+      });
+
+      // Residence Address (RA) - comprehensive coverage
+      final raAddressFields = {
+        'RA_Line_1': 'Residence Line 1',
+        'RA_Line_2': 'Residence Line 2',
+        'RA_Line_3': 'Residence Line 3',
+        'RA_Line_4': 'Residence Line 4',
+        'Residence_Address_City': 'Residence City',
+        'Residence_Address_Province': 'Residence Province',
+        'Residence_Address_SubDistrict': 'Residence Sub District',
+        'RA_District': 'Residence District',
+        'RA_RT_RW': 'Residence RT/RW',
+        'RA_Zip_Code': 'Residence Zip Code',
+      };
+
+      raAddressFields.forEach((field, label) {
+        if (_fieldContains(rawData[field], lowerQuery)) {
+          addMatchWithPreview(label, rawData[field].toString(), 'home');
+        }
+      });
+
+      // Office Address (OA) - comprehensive coverage
+      final oaAddressFields = {
+        'OA_Line_1': 'Office Line 1',
+        'OA_Line_2': 'Office Line 2',
+        'OA_Line_3': 'Office Line 3',
+        'OA_Line_4': 'Office Line 4',
+        'Office_Address_City': 'Office City',
+        'Office_Address_Province': 'Office Province',
+        'Office_Address_SubDistrict': 'Office Sub District',
+        'Office_Address_District': 'Office District',
+        'OA_RT_RW': 'Office RT/RW',
+        'Office_Address_Zipcode': 'Office Zip Code',
+      };
+
+      oaAddressFields.forEach((field, label) {
+        if (_fieldContains(rawData[field], lowerQuery)) {
+          addMatchWithPreview(label, rawData[field].toString(), 'business');
+        }
+      });
+
+      // Financial information - comprehensive coverage
+      final financialFields = {
+        'Total_OS_Yesterday1': 'Total Outstanding',
+        'Last_Payment_Amount': 'Last Payment Amount',
+        'Last_Payment_Date': 'Last Payment Date',
+        'Rep_Status_Current_Bill': 'Repayment Status',
+        'Repayment_Amount': 'Repayment Amount',
+        'Days_Past_Due': 'Days Past Due',
+        'DPD_Bucket': 'DPD Bucket',
+      };
+
+      financialFields.forEach((field, label) {
+        if (_fieldContains(
+            rawData[field], field.contains('Date') ? lowerQuery : query)) {
+          final value = rawData[field].toString();
+          String formattedValue;
+
+          if (field == 'Last_Payment_Date') {
+            // Format date field
+            try {
+              final date = DateTime.tryParse(value);
+              formattedValue = date != null
+                  ? '${date.day}/${date.month}/${date.year}'
+                  : value;
+            } catch (e) {
+              formattedValue = value;
+            }
+          } else if ([
+            'Total_OS_Yesterday1',
+            'Last_Payment_Amount',
+            'Repayment_Amount'
+          ].contains(field)) {
+            // Format currency fields
+            formattedValue = _formatCurrency(value);
+          } else {
+            formattedValue = value;
+          }
+
+          addMatchWithPreview(label, formattedValue, 'account_balance');
+        }
+      });
+
+      // Skorcard-specific fields (show preview for all, but note access)
+      if (_fieldContains(rawData['Last_Statement_MAD'], query)) {
+        final madValue = rawData['Last_Statement_MAD'].toString();
+        final displayValue = _isSkorCardUser()
+            ? _formatCurrency(madValue)
+            : '*** (Skorcard Only)';
+        addMatchWithPreview('MAD', displayValue, 'account_balance');
+      }
+
+      if (_fieldContains(rawData['Last_Statement_TAD'], query)) {
+        final tadValue = rawData['Last_Statement_TAD'].toString();
+        final displayValue = _isSkorCardUser()
+            ? _formatCurrency(tadValue)
+            : '*** (Skorcard Only)';
+        addMatchWithPreview('TAD', displayValue, 'account_balance');
+      }
+
+      if (_fieldContains(rawData['Buy_Back_Status'], lowerQuery)) {
+        final buyBackValue = rawData['Buy_Back_Status'].toString();
+        final displayValue = _isSkorCardUser()
+            ? buyBackValue.toUpperCase()
+            : '*** (Skorcard Only)';
+        addMatchWithPreview('BuyBack Status', displayValue, 'account_balance');
+      }
+    }
+
+    // Sort matches: high priority first, then by label
+    matches.sort((a, b) {
+      if (a['isHighPriority'] && !b['isHighPriority']) return -1;
+      if (!a['isHighPriority'] && b['isHighPriority']) return 1;
+      return a['label'].toString().compareTo(b['label'].toString());
+    });
+
+    return matches;
+  }
+
+  /// Create search preview with highlighted matching text (like Google search snippets)
+  Map<String, dynamic> _createSearchPreview(String text, String query) {
+    if (query.isEmpty || text.isEmpty) {
+      return {
+        'hasMatch': false,
+        'preview': text.length > 50 ? '${text.substring(0, 50)}...' : text,
+        'highlightStart': -1,
+        'highlightEnd': -1,
+      };
+    }
+
+    final lowerText = text.toLowerCase();
+    final lowerQuery = query.toLowerCase();
+    final matchIndex = lowerText.indexOf(lowerQuery);
+
+    if (matchIndex == -1) {
+      return {
+        'hasMatch': false,
+        'preview': text.length > 50 ? '${text.substring(0, 50)}...' : text,
+        'highlightStart': -1,
+        'highlightEnd': -1,
+      };
+    }
+
+    // Create preview window around the match (like Google search snippets)
+    const maxPreviewLength = 60;
+    const padding = 20;
+
+    int startIndex = (matchIndex - padding).clamp(0, text.length);
+    int endIndex = (matchIndex + query.length + padding).clamp(0, text.length);
+
+    // Adjust to word boundaries if possible
+    if (startIndex > 0) {
+      final spaceIndex = text.indexOf(' ', startIndex);
+      if (spaceIndex != -1 && spaceIndex < matchIndex) {
+        startIndex = spaceIndex + 1;
+      }
+    }
+
+    if (endIndex < text.length) {
+      final spaceIndex = text.lastIndexOf(' ', endIndex);
+      if (spaceIndex > matchIndex + query.length) {
+        endIndex = spaceIndex;
+      }
+    }
+
+    String preview = text.substring(startIndex, endIndex);
+    if (startIndex > 0) preview = '...$preview';
+    if (endIndex < text.length) preview = '$preview...';
+
+    // Adjust highlight positions for the preview
+    final highlightStart = matchIndex - startIndex + (startIndex > 0 ? 3 : 0);
+    final highlightEnd = highlightStart + query.length;
+
+    return {
+      'hasMatch': true,
+      'preview': preview,
+      'highlightStart': highlightStart,
+      'highlightEnd': highlightEnd,
+      'fullText': text,
+    };
+  }
+
+  /// Format currency for display in search results
+  String _formatCurrency(String value) {
+    try {
+      final numValue = double.tryParse(value.replaceAll(RegExp(r'[^\d.]'), ''));
+      if (numValue != null) {
+        return 'Rp ${numValue.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+      }
+    } catch (e) {
+      // Return original value if parsing fails
+    }
+    return value;
+  }
+
   /// Get distinct cities from all client data
   List<String> _getDistinctCities(List<Client> clients) {
     final Set<String> cities = {};
@@ -195,14 +670,10 @@ class _ListClientTabState extends State<ListClientTab> {
   List<Client> _getFilteredAndSortedClients(List<Client> clients) {
     List<Client> filtered = clients;
 
-    // Apply search filter
+    // Apply comprehensive search filter
     if (_searchQuery.isNotEmpty) {
       filtered = filtered.where((client) {
-        final nameMatch = client.name.toLowerCase().contains(_searchQuery);
-        final phoneMatch = client.phone.contains(_searchQuery);
-        final cleanPhoneMatch =
-            _formatPhoneClean(client.phone).contains(_searchQuery);
-        return nameMatch || phoneMatch || cleanPhoneMatch;
+        return _matchesSearchQuery(client, _searchQuery);
       }).toList();
     }
 
@@ -429,7 +900,7 @@ class _ListClientTabState extends State<ListClientTab> {
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'Search by name or phone number...',
+          hintText: 'Search across all client fields with smart previews...',
           hintStyle: TextStyle(color: Colors.grey[500]),
           prefixIcon: AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
@@ -876,38 +1347,86 @@ class _ListClientTabState extends State<ListClientTab> {
         ),
       );
     } else {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          RichText(
-            text: TextSpan(
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _searchQuery.isNotEmpty ? Colors.green[50] : Colors.blue[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: _searchQuery.isNotEmpty
+                ? Colors.green[200]!
+                : Colors.blue[200]!,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                const TextSpan(text: 'Found '),
-                TextSpan(
-                  text: '$filteredCount',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
+                Icon(
+                  _searchQuery.isNotEmpty ? Icons.search : Icons.filter_list,
+                  size: 18,
+                  color: _searchQuery.isNotEmpty
+                      ? Colors.green[600]
+                      : Colors.blue[600],
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                      ),
+                      children: [
+                        const TextSpan(text: 'Found '),
+                        TextSpan(
+                          text: '$filteredCount',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _searchQuery.isNotEmpty
+                                ? Colors.green[700]
+                                : Colors.blue[700],
+                          ),
+                        ),
+                        TextSpan(text: ' of $totalCount clients'),
+                      ],
+                    ),
                   ),
                 ),
-                TextSpan(text: ' of $totalCount clients'),
               ],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Filters: ${filterInfo.join(', ')}',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[500],
-              fontStyle: FontStyle.italic,
+            const SizedBox(height: 6),
+            Text(
+              'Filters: ${filterInfo.join(', ')}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
+              ),
             ),
-          ),
-        ],
+            // Add search enhancement info
+            if (_searchQuery.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome, size: 14, color: Colors.green[600]),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Smart search across all fields with highlighted previews',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.green[600],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
       );
     }
   }
@@ -1111,6 +1630,10 @@ class _ListClientTabState extends State<ListClientTab> {
   }
 
   Widget _buildClientInfo(Client client) {
+    final searchMatches = _searchQuery.isNotEmpty
+        ? _getSearchMatches(client, _searchQuery)
+        : <Map<String, String>>[];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1119,7 +1642,7 @@ class _ListClientTabState extends State<ListClientTab> {
             Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
             const SizedBox(width: 5),
             Expanded(
-              child: Text(
+              child: _buildHighlightedText(
                 client.address,
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
@@ -1251,7 +1774,266 @@ class _ListClientTabState extends State<ListClientTab> {
             ],
           ),
         ],
+
+        // Show search match details when searching with enhanced preview
+        if (searchMatches.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue[200]!),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.search, size: 16, color: Colors.blue[600]),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Matches found in:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue[700],
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[100],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${searchMatches.length}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[700],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ...searchMatches.take(4).map((match) => Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue[100]!),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Field name with icon
+                          Row(
+                            children: [
+                              _getMatchIcon(match['icon']!),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  match['label']!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue[700],
+                                  ),
+                                ),
+                              ),
+                              if (match['isHighPriority'] == true)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange[100],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'PRIMARY',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange[700],
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          // Preview with highlighted text
+                          _buildSearchPreview(
+                              match['preview'], match['label']!),
+                        ],
+                      ),
+                    )),
+                if (searchMatches.length > 4) ...[
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.more_horiz,
+                            size: 14, color: Colors.blue[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '+${searchMatches.length - 4} more fields match',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.blue[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ],
+    );
+  }
+
+  /// Build search preview with highlighting (like Google search snippets)
+  Widget _buildSearchPreview(Map<String, dynamic> preview, String fieldLabel) {
+    if (!preview['hasMatch']) {
+      return Text(
+        preview['preview'],
+        style: TextStyle(
+          fontSize: 11,
+          color: Colors.grey[600],
+          fontStyle: FontStyle.italic,
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final previewText = preview['preview'] as String;
+    final highlightStart = preview['highlightStart'] as int;
+    final highlightEnd = preview['highlightEnd'] as int;
+
+    if (highlightStart == -1 || highlightEnd == -1) {
+      return Text(
+        previewText,
+        style: TextStyle(
+          fontSize: 11,
+          color: Colors.grey[700],
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    return RichText(
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      text: TextSpan(
+        style: TextStyle(
+          fontSize: 11,
+          color: Colors.grey[700],
+          height: 1.3,
+        ),
+        children: [
+          // Text before highlight
+          if (highlightStart > 0)
+            TextSpan(text: previewText.substring(0, highlightStart)),
+
+          // Highlighted match
+          TextSpan(
+            text: previewText.substring(
+                highlightStart.clamp(0, previewText.length),
+                highlightEnd.clamp(0, previewText.length)),
+            style: TextStyle(
+              backgroundColor: Colors.yellow[300],
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+
+          // Text after highlight
+          if (highlightEnd < previewText.length)
+            TextSpan(text: previewText.substring(highlightEnd)),
+        ],
+      ),
+    );
+  }
+
+  /// Get icon for search match type
+  Widget _getMatchIcon(String iconType) {
+    IconData iconData;
+    Color iconColor = Colors.blue[600]!;
+
+    switch (iconType) {
+      case 'person':
+        iconData = Icons.person;
+        iconColor = Colors.indigo[600]!;
+        break;
+      case 'phone':
+        iconData = Icons.phone;
+        iconColor = Colors.green[600]!;
+        break;
+      case 'location_on':
+        iconData = Icons.location_on;
+        iconColor = Colors.red[600]!;
+        break;
+      case 'business':
+        iconData = Icons.business;
+        break;
+      case 'work':
+        iconData = Icons.work;
+        break;
+      case 'badge':
+        iconData = Icons.badge;
+        break;
+      case 'home':
+        iconData = Icons.home;
+        iconColor = Colors.brown[600]!;
+        break;
+      case 'email':
+        iconData = Icons.email;
+        iconColor = Colors.blue[700]!;
+        break;
+      case 'contact_emergency':
+        iconData = Icons.contact_emergency;
+        iconColor = Colors.orange[600]!;
+        break;
+      case 'location_city':
+        iconData = Icons.location_city;
+        iconColor = Colors.purple[600]!;
+        break;
+      case 'account_balance':
+        iconData = Icons.account_balance_wallet;
+        iconColor = Colors.green[600]!;
+        break;
+      case 'info':
+        iconData = Icons.info_outline;
+        iconColor = Colors.blue[500]!;
+        break;
+      case 'id_card':
+        iconData = Icons.credit_card;
+        iconColor = Colors.amber[600]!;
+        break;
+      default:
+        iconData = Icons.search;
+        iconColor = Colors.grey[600]!;
+    }
+
+    return Icon(
+      iconData,
+      size: 14,
+      color: iconColor,
     );
   }
 
