@@ -1321,9 +1321,60 @@ class _ListClientTabState extends State<ListClientTab> {
             _buildResultsHeader(filteredClients.length, allClients.length),
             const SizedBox(height: 16),
             _buildClientList(filteredClients),
+            const SizedBox(height: 16),
+            _buildPaginationBar(controller),
           ],
         );
     }
+  }
+
+  Widget _buildPaginationBar(ClientController controller) {
+    final totalPages = controller.totalPages;
+    final currentPage = controller.currentPage;
+
+    if (totalPages <= 1) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(totalPages, (index) {
+            final page = index + 1;
+            final isSelected = page == currentPage;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      isSelected ? Colors.blue[700] : Colors.white,
+                  foregroundColor:
+                      isSelected ? Colors.white : Colors.blue[700],
+                  minimumSize: const Size(40, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  elevation: isSelected ? 2 : 0,
+                  side: BorderSide(
+                    color: isSelected ? Colors.blue[700]! : Colors.blue[300]!,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: isSelected
+                    ? null
+                    : () {
+                        controller.loadPage(page);
+                      },
+                child: Text(
+                  '$page',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
   }
 
   Widget _buildResultsHeader(int filteredCount, int totalCount) {
