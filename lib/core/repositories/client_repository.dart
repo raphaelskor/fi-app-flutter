@@ -12,6 +12,7 @@ class ClientRepository {
     String? fiOwnerEmail,
     double? userLatitude,
     double? userLongitude,
+    int page = 1,
   }) async {
     try {
       if (fiOwnerEmail == null || fiOwnerEmail.isEmpty) {
@@ -21,7 +22,8 @@ class ClientRepository {
         );
       }
 
-      final clientsData = await _apiService.fetchSkorcardClients(fiOwnerEmail);
+      final clientsData =
+          await _apiService.fetchSkorcardClients(fiOwnerEmail, page: page);
 
       final List<Client> clients = clientsData
           .map((clientData) => Client.fromSkorcardApi(clientData))
@@ -53,6 +55,11 @@ class ClientRepository {
       throw NetworkException(
           message: 'Failed to fetch clients from Skorcard: ${e.toString()}');
     }
+  }
+
+  // Fetch total pages from Skorcard pagination API
+  Future<int> getClientTotalPages(String fiOwnerEmail) async {
+    return await _apiService.fetchClientTotalPages(fiOwnerEmail);
   }
 
   // Original method for fallback (if needed)

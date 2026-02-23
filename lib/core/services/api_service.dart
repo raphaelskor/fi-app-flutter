@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/env_config.dart';
 import '../exceptions/app_exception.dart';
@@ -255,8 +256,42 @@ class ApiService {
   }
 
   // Skorcard API specific methods
+
+  // Fetch pagination info (totalPages) from Skorcard API
+  Future<int> fetchClientTotalPages(String fiOwnerEmail) async {
+    try {
+      const String url =
+          'https://n8n.skorcard.app/webhook/269784ce-3a97-4ca7-842e-6e0b2d0405f9';
+
+      final response = await _client
+          .post(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'fi_owner': fiOwnerEmail}),
+          )
+          .timeout(EnvConfig.receiveTimeout);
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final dynamic parsed = jsonDecode(response.body);
+        if (parsed is List && parsed.isNotEmpty) {
+          final item = parsed[0];
+          if (item is Map && item['totalPages'] != null) {
+            return (item['totalPages'] as num).toInt();
+          }
+        }
+      }
+      return 1;
+    } catch (e) {
+      debugPrint('Failed to fetch pagination info: $e');
+      return 1;
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchSkorcardClients(
-      String fiOwnerEmail) async {
+      String fiOwnerEmail, {int page = 1}) async {
     try {
       // Use POST method with fi_owner in request body
       const String baseUrl =
@@ -265,6 +300,7 @@ class ApiService {
       // Prepare request body
       final Map<String, dynamic> requestBody = {
         'fi_owner': fiOwnerEmail,
+        'page': page,
       };
 
       print('🔄 Calling Skorcard API with fi_owner: $fiOwnerEmail');

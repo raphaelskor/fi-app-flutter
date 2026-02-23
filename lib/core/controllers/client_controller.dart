@@ -32,6 +32,7 @@ class ClientController extends ChangeNotifier {
   String? _errorMessage;
   PaginationMeta? _paginationMeta;
   Position? _userLocation;
+  int _totalPages = 1;
 
   // Filters
   String? _searchQuery;
@@ -52,6 +53,7 @@ class ClientController extends ChangeNotifier {
   String? get searchQuery => _searchQuery;
   String? get statusFilter => _statusFilter;
   int get currentPage => _currentPage;
+  int get totalPages => _totalPages;
   bool get hasMore => _paginationMeta?.hasNextPage ?? false;
 
   // Initialize
@@ -60,7 +62,56 @@ class ClientController extends ChangeNotifier {
     await DailyCacheService.clearOutdatedCache();
 
     await _getUserLocation();
-    await loadTodaysClients(); // This will use cache if available
+    await Future.wait([
+      fetchPaginationInfo(),
+      loadTodaysClients(),
+    ]);
+  }
+
+  // Fetch pagination info (total pages)
+  Future<void> fetchPaginationInfo() async {
+    try {
+      final userEmail = _authService.userData?['email'] as String?;
+      if (userEmail == null || userEmail.isEmpty) return;
+      _totalPages = await _clientRepository.getClientTotalPages(userEmail);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Failed to fetch pagination info: $e');
+    }
+  }
+
+  // Load clients for a specific page (bypasses cache)
+  Future<void> loadPage(int page) async {
+    try {
+      _currentPage = page;
+      _setLoadingState(ClientLoadingState.loading);
+
+      final userEmail = _authService.userData?['email'] as String?;
+      if (userEmail == null || userEmail.isEmpty) {
+        throw ValidationException(
+          message: 'User email not found. Please login again.',
+          statusCode: 400,
+        );
+      }
+
+      final response = await _clientRepository.getSkorcardClients(
+        fiOwnerEmail: userEmail,
+        userLatitude: _userLocation?.latitude,
+        userLongitude: _userLocation?.longitude,
+        page: page,
+      );
+
+      if (response.success && response.data != null) {
+        _todaysClients = response.data!;
+        _clients = List.from(_todaysClients);
+        _paginationMeta = response.pagination;
+        _setLoadingState(ClientLoadingState.loaded);
+      } else {
+        _setError(response.message);
+      }
+    } catch (e) {
+      _setError(_getErrorMessage(e));
+    }
   }
 
   // Get user location
