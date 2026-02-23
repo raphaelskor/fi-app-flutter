@@ -32,6 +32,7 @@ class ClientController extends ChangeNotifier {
   String? _errorMessage;
   PaginationMeta? _paginationMeta;
   Position? _userLocation;
+  int _totalPages = 1;
 
   // Filters
   String? _searchQuery;
@@ -52,6 +53,7 @@ class ClientController extends ChangeNotifier {
   String? get searchQuery => _searchQuery;
   String? get statusFilter => _statusFilter;
   int get currentPage => _currentPage;
+  int get totalPages => _totalPages;
   bool get hasMore => _paginationMeta?.hasNextPage ?? false;
 
   // Initialize
@@ -60,7 +62,35 @@ class ClientController extends ChangeNotifier {
     await DailyCacheService.clearOutdatedCache();
 
     await _getUserLocation();
+    await fetchPaginationInfo();
     await loadTodaysClients(); // This will use cache if available
+  }
+
+  // Fetch total pages from pagination API
+  Future<void> fetchPaginationInfo() async {
+    try {
+      final userEmail = _authService.userData?['email'] as String?;
+      if (userEmail == null || userEmail.isEmpty) return;
+
+      final info =
+          await _clientRepository.getPaginationInfo(fiOwnerEmail: userEmail);
+      final pages = info['totalPages'];
+      if (pages is int && pages > 0) {
+        _totalPages = pages;
+      } else if (pages is num && pages > 0) {
+        _totalPages = pages.toInt();
+      }
+      debugPrint('📄 Total pages: $_totalPages');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Error fetching pagination info: $e');
+    }
+  }
+
+  // Load a specific page of clients
+  Future<void> loadPage(int page) async {
+    _currentPage = page;
+    await loadTodaysClients(page: page, forceRefresh: true);
   }
 
   // Get user location
@@ -116,12 +146,13 @@ class ClientController extends ChangeNotifier {
   }
 
   // Load today's clients with daily caching
-  Future<void> loadTodaysClients({bool forceRefresh = false}) async {
+  Future<void> loadTodaysClients(
+      {bool forceRefresh = false, int page = 1}) async {
     try {
       _setLoadingState(ClientLoadingState.loading);
 
-      // Try to load from cache first (unless force refresh is requested)
-      if (!forceRefresh) {
+      // Try to load from cache only for page 1 and only if not force refresh
+      if (!forceRefresh && page == 1) {
         final cachedClients = await DailyCacheService.loadCachedClients();
         if (cachedClients != null) {
           _todaysClients = cachedClients;
@@ -139,8 +170,8 @@ class ClientController extends ChangeNotifier {
         }
       }
 
-      // Cache miss or force refresh - load from API
-      debugPrint('🌐 Loading clients from API...');
+      // Cache miss, force refresh, or page > 1 - load from API
+      debugPrint('🌐 Loading clients from API (page $page)...');
 
       // Get user email from AuthService
       final userEmail = _authService.userData?['email'] as String?;
@@ -156,6 +187,7 @@ class ClientController extends ChangeNotifier {
         fiOwnerEmail: userEmail,
         userLatitude: _userLocation?.latitude,
         userLongitude: _userLocation?.longitude,
+        page: page,
       );
 
       if (response.success && response.data != null) {
@@ -169,12 +201,14 @@ class ClientController extends ChangeNotifier {
         // Extract and store Client ID mappings from the loaded data
         await _extractAndStoreClientIdMappings(_todaysClients);
 
-        // Save to cache for next time
-        await DailyCacheService.saveTodaysClients(_todaysClients);
-        debugPrint('💾 Saved ${_todaysClients.length} clients to cache');
+        // Save to cache for next time (only for page 1)
+        if (page == 1) {
+          await DailyCacheService.saveTodaysClients(_todaysClients);
+          debugPrint('💾 Saved ${_todaysClients.length} clients to cache');
 
-        // Auto-cache location data for all clients in background
-        _autoCacheLocationData(_todaysClients);
+          // Auto-cache location data for all clients in background
+          _autoCacheLocationData(_todaysClients);
+        }
 
         _setLoadingState(ClientLoadingState.loaded);
       } else {

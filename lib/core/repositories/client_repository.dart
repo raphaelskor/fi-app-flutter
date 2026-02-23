@@ -7,11 +7,18 @@ import '../exceptions/app_exception.dart';
 class ClientRepository {
   final ApiService _apiService = ApiService();
 
+  // Fetch pagination info (totalPages) from Skorcard API
+  Future<Map<String, dynamic>> getPaginationInfo(
+      {required String fiOwnerEmail}) async {
+    return await _apiService.fetchPaginationInfo(fiOwnerEmail);
+  }
+
   // Fetch clients from Skorcard API
   Future<ApiResponse<List<Client>>> getSkorcardClients({
     String? fiOwnerEmail,
     double? userLatitude,
     double? userLongitude,
+    int page = 1,
   }) async {
     try {
       if (fiOwnerEmail == null || fiOwnerEmail.isEmpty) {
@@ -21,7 +28,8 @@ class ClientRepository {
         );
       }
 
-      final clientsData = await _apiService.fetchSkorcardClients(fiOwnerEmail);
+      final clientsData =
+          await _apiService.fetchSkorcardClients(fiOwnerEmail, page: page);
 
       final List<Client> clients = clientsData
           .map((clientData) => Client.fromSkorcardApi(clientData))

@@ -27,6 +27,7 @@ class ListClientTab extends StatefulWidget {
 
 class _ListClientTabState extends State<ListClientTab> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   String _searchQuery = '';
   Timer? _debounceTimer;
 
@@ -135,6 +136,7 @@ class _ListClientTabState extends State<ListClientTab> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     _debounceTimer?.cancel();
     super.dispose();
   }
@@ -751,43 +753,183 @@ class _ListClientTabState extends State<ListClientTab> {
   Widget build(BuildContext context) {
     return Consumer<ClientController>(
       builder: (context, clientController, child) {
-        return Column(
+        return Stack(
           children: [
-            // Loading bar for cache operations
-            if (clientController.loadingState == ClientLoadingState.caching)
-              Container(
-                height: 3,
-                child: LinearProgressIndicator(
-                  backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
-                ),
-              ),
+            Column(
+              children: [
+                // Loading bar for cache operations
+                if (clientController.loadingState == ClientLoadingState.caching)
+                  Container(
+                    height: 3,
+                    child: LinearProgressIndicator(
+                      backgroundColor: Colors.grey[200],
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+                    ),
+                  ),
 
-            // Main content
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => clientController.refresh(),
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(),
-                      const SizedBox(height: 16),
-                      _buildSearchBar(),
-                      const SizedBox(height: 16),
-                      _buildFilterAndSortControls(clientController),
-                      const SizedBox(height: 20),
-                      _buildMainContent(clientController),
-                    ],
+                // Main content
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () => clientController.refresh(),
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(),
+                          const SizedBox(height: 16),
+                          _buildSearchBar(),
+                          const SizedBox(height: 16),
+                          _buildFilterAndSortControls(clientController),
+                          const SizedBox(height: 20),
+                          _buildMainContent(clientController),
+                          const SizedBox(height: 16),
+                          _buildPaginationControls(clientController),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
+              ],
+            ),
+
+            // Floating scroll-to-bottom button
+            Positioned(
+              right: 16,
+              bottom: 20,
+              child: FloatingActionButton.small(
+                heroTag: 'scrollToBottom',
+                onPressed: () {
+                  _scrollController.animateTo(
+                    _scrollController.position.maxScrollExtent,
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOut,
+                  );
+                },
+                backgroundColor: Colors.blue[700],
+                foregroundColor: Colors.white,
+                elevation: 4,
+                child: const Icon(Icons.keyboard_arrow_down, size: 26),
               ),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildPaginationControls(ClientController controller) {
+    final totalPages = controller.totalPages;
+    final currentPage = controller.currentPage;
+
+    if (totalPages <= 1) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 8.0, bottom: 8.0),
+            child: Text(
+              'Halaman $currentPage dari $totalPages',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(totalPages, (index) {
+                final pageNum = index + 1;
+                final isCurrentPage = pageNum == currentPage;
+                final isLoading =
+                    controller.loadingState == ClientLoadingState.loading;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3.0),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: isLoading || isCurrentPage
+                          ? null
+                          : () {
+                              controller.loadPage(pageNum);
+                              // Scroll back to top
+                              if (_scrollController.hasClients) {
+                                _scrollController.animateTo(
+                                  0,
+                                  duration: const Duration(milliseconds: 300),
+                                  curve: Curves.easeOut,
+                                );
+                              }
+                            },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: isCurrentPage
+                              ? Colors.blue[700]
+                              : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isCurrentPage
+                                ? Colors.blue[700]!
+                                : Colors.grey[300]!,
+                            width: 1,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: isLoading && isCurrentPage
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                '$pageNum',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: isCurrentPage
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isCurrentPage
+                                      ? Colors.white
+                                      : Colors.grey[700],
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

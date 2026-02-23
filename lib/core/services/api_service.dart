@@ -255,8 +255,44 @@ class ApiService {
   }
 
   // Skorcard API specific methods
+
+  // Fetch pagination info (total pages) from Skorcard API
+  Future<Map<String, dynamic>> fetchPaginationInfo(String fiOwnerEmail) async {
+    try {
+      const String url =
+          'https://n8n.skorcard.app/webhook/269784ce-3a97-4ca7-842e-6e0b2d0405f9';
+
+      print('📄 Fetching pagination info for fi_owner: $fiOwnerEmail');
+
+      final response = await _client
+          .post(
+            Uri.parse(url),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'fi_owner': fiOwnerEmail}),
+          )
+          .timeout(EnvConfig.receiveTimeout);
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final dynamic parsed = jsonDecode(response.body);
+        final Map<String, dynamic> data =
+            parsed is List ? parsed.first as Map<String, dynamic> : parsed;
+        print('📄 Pagination info: $data');
+        return data;
+      } else {
+        print('⚠️ Pagination info request failed: ${response.statusCode}');
+        return {'count': 0, 'perPage': 200, 'totalPages': 1};
+      }
+    } catch (e) {
+      print('❌ Error fetching pagination info: $e');
+      return {'count': 0, 'perPage': 200, 'totalPages': 1};
+    }
+  }
+
   Future<List<Map<String, dynamic>>> fetchSkorcardClients(
-      String fiOwnerEmail) async {
+      String fiOwnerEmail, {int page = 1}) async {
     try {
       // Use POST method with fi_owner in request body
       const String baseUrl =
@@ -265,6 +301,7 @@ class ApiService {
       // Prepare request body
       final Map<String, dynamic> requestBody = {
         'fi_owner': fiOwnerEmail,
+        'page': page,
       };
 
       print('🔄 Calling Skorcard API with fi_owner: $fiOwnerEmail');
